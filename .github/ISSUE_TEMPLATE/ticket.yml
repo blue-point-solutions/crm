@@ -1,0 +1,44 @@
+name: Build ticket
+description: A scoped, agent-claimable unit of CRM work.
+title: "<type>(<area>): <short summary>"
+labels: ["status:ready"]
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal / scope
+      description: One concern. What this ticket delivers — and explicitly what it does NOT.
+    validations:
+      required: true
+  - type: input
+    id: depends_on
+    attributes:
+      label: Depends-On
+      description: Issue numbers that must be Done first (e.g. "#1, #4"). Leave blank if none. An agent will NOT claim this until all are Done.
+      placeholder: "#1"
+  - type: dropdown
+    id: phase
+    attributes:
+      label: Phase
+      options: ["1 - Core", "2 - CRM features", "3 - Email & reports", "4 - Team & sync"]
+    validations:
+      required: true
+  - type: dropdown
+    id: type
+    attributes:
+      label: Type
+      options: ["lib (new/changed platform-* package)", "backend (CRM API)", "frontend (mobile/web)", "infra", "docs"]
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Checklist that defines Done. Include test + gate expectations.
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Reuse / notes
+      description: Which library packages to reuse (per PACKAGES.md); hotspot files touched; anything needing Postgres/device.

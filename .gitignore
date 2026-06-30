@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+build/
+uv.lock
+
+# Node / mobile
+node_modules/
+.expo/
+*.log
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# OS
+.DS_Store
+
+# per-machine id written by bootstrap-machine.sh
+.machine-id
