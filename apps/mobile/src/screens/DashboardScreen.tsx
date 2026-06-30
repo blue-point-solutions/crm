@@ -292,6 +292,18 @@ export default function DashboardScreen({ navigation }: Props) {
       </View>
 
       {/* ------------------------------------------------------------------ */}
+      {/* Scan CTA — compact strip                                            */}
+      {/* ------------------------------------------------------------------ */}
+      <TouchableOpacity
+        style={styles.scanStrip}
+        onPress={() => navigation.navigate("CameraPermission")}
+      >
+        <Text style={styles.scanStripIcon}>📷</Text>
+        <Text style={styles.scanStripText}>Scan a Business Card</Text>
+        <Text style={styles.scanStripArrow}>›</Text>
+      </TouchableOpacity>
+
+      {/* ------------------------------------------------------------------ */}
       {/* Recent Contacts                                                      */}
       {/* ------------------------------------------------------------------ */}
       <View style={styles.section}>
@@ -401,22 +413,6 @@ export default function DashboardScreen({ navigation }: Props) {
         </View>
       )}
 
-      {/* ------------------------------------------------------------------ */}
-      {/* Scan CTA                                                             */}
-      {/* ------------------------------------------------------------------ */}
-      <TouchableOpacity
-        style={styles.scanCard}
-        onPress={() => navigation.navigate("CameraPermission")}
-      >
-        <Text style={styles.scanIcon}>📷</Text>
-        <View style={styles.scanTextBlock}>
-          <Text style={styles.scanTitle}>Scan a Business Card</Text>
-          <Text style={styles.scanSubtitle}>
-            Add a new contact instantly by scanning their card
-          </Text>
-        </View>
-        <Text style={styles.scanArrow}>›</Text>
-      </TouchableOpacity>
     </ScrollView>
   );
 }
@@ -623,43 +619,31 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
 
-  // Scan CTA
-  scanCard: {
+  // Scan CTA — compact strip
+  scanStrip: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#0c4aad",
-    borderRadius: 14,
+    borderRadius: 10,
     marginHorizontal: 16,
-    marginTop: 4,
+    marginTop: 8,
     marginBottom: 8,
-    padding: 18,
-    shadowColor: "#000",
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
   },
-  scanIcon: {
-    fontSize: 32,
-    marginRight: 14,
+  scanStripIcon: {
+    fontSize: 18,
+    marginRight: 8,
   },
-  scanTextBlock: {
+  scanStripText: {
     flex: 1,
-  },
-  scanTitle: {
-    fontSize: 16,
-    fontWeight: "700",
+    fontSize: 14,
+    fontWeight: "600",
     color: "#fff",
-    marginBottom: 4,
   },
-  scanSubtitle: {
-    fontSize: 12,
-    color: "#a0a8c0",
-    lineHeight: 17,
-  },
-  scanArrow: {
-    fontSize: 28,
-    color: "#a0a8c0",
-    marginLeft: 8,
+  scanStripArrow: {
+    fontSize: 20,
+    color: "#a0c4ff",
+    marginLeft: 4,
   },
 });

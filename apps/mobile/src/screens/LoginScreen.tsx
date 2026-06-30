@@ -159,11 +159,8 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   poweredBy: {
-    position: "absolute",
-    bottom: 40,
-    left: 0,
-    right: 0,
     alignItems: "center",
+    marginTop: 32,
   },
   poweredByText: {
     fontSize: 11,
