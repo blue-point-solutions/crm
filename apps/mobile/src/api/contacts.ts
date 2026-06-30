@@ -38,6 +38,90 @@ export async function getDashboard() {
   return data;
 }
 
+export interface Activity {
+  id: string;
+  type: "note" | "call" | "email" | "meeting";
+  content: string;
+  createdAt: string;
+}
+
+export interface ContactDetail extends ContactListItem {
+  jobTitle: string;
+  emails: string[];
+  phones: string[];
+  website: string;
+  address: string;
+  linkedin: string;
+  facebook: string;
+  cardImageUri?: string;
+  source: string;
+  tags: string[];
+  status: "Lead" | "Active" | "Inactive";
+  marketingConsent: "Yes" | "No" | "NotAsked";
+  decisionMaker: "Yes" | "No" | "Unknown";
+  interests: string[];
+  painPoint: string;
+  notes: string;
+  followUpDate?: string;
+  activities: Activity[];
+  lastActivityDate?: string;
+}
+
+export async function getContact(id: string): Promise<ContactDetail> {
+  const { data } = await client.get<ContactDetail>(`/contacts/${id}`);
+  return data;
+}
+
+export async function updateContact(id: string, patch: Partial<ContactDetail>): Promise<ContactDetail> {
+  const { data } = await client.patch<ContactDetail>(`/contacts/${id}`, patch);
+  return data;
+}
+
+export function getMockContactDetail(id: string): ContactDetail {
+  const base = MOCK_CONTACTS.find((c) => c.id === id) ?? MOCK_CONTACTS[0];
+  return {
+    ...base,
+    jobTitle: "Head of Partnerships",
+    emails: base.email ? [base.email, `${base.firstName.toLowerCase()}@personal.com`] : [],
+    phones: base.phone ? [base.phone, "+44 20 7946 0123"] : [],
+    website: "https://apexsolutions.co.uk",
+    address: "14 Canary Wharf, London, E14 5AB",
+    linkedin: "https://linkedin.com/in/example",
+    facebook: "https://facebook.com/example",
+    cardImageUri: undefined,
+    source: base.source ?? "BNI",
+    tags: ["VIP", "Q3-Target", "Decision-Maker"],
+    status: "Active",
+    marketingConsent: "Yes",
+    decisionMaker: "Yes",
+    interests: ["SaaS", "Automation", "AI"],
+    painPoint: "Struggling to scale outbound without losing personalisation at volume.",
+    notes: "Met at BNI June breakfast. Keen on a demo before end of Q3. Prefers morning calls.",
+    followUpDate: "2026-07-15",
+    activities: [
+      {
+        id: "a1",
+        type: "call",
+        content: "Intro call — discussed pain points and demo timeline.",
+        createdAt: "2026-06-22T10:00:00Z",
+      },
+      {
+        id: "a2",
+        type: "email",
+        content: "Sent follow-up email with pricing deck attached.",
+        createdAt: "2026-06-23T14:30:00Z",
+      },
+      {
+        id: "a3",
+        type: "note",
+        content: "Confirmed they have budget approved for H2.",
+        createdAt: "2026-06-25T09:15:00Z",
+      },
+    ],
+    lastActivityDate: "2026-06-25T09:15:00Z",
+  };
+}
+
 export const MOCK_CONTACTS: ContactListItem[] = [
   {
     id: "1",
