@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Image,
 } from "react-native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/types";
@@ -39,7 +40,8 @@ export default function LoginScreen({ navigation }: Props) {
       style={styles.container}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      <Text style={styles.title}>CRM</Text>
+      {/* App name */}
+      <Text style={styles.appName}>BP Connect</Text>
       <Text style={styles.subtitle}>Sign in to your account</Text>
 
       {error && <Text style={styles.error}>{error}</Text>}
@@ -82,6 +84,16 @@ export default function LoginScreen({ navigation }: Props) {
       >
         <Text style={styles.devButtonText}>⚡ Dev: Skip Login</Text>
       </TouchableOpacity>
+
+      {/* Powered by Blue Point Solutions */}
+      <View style={styles.poweredBy}>
+        <Text style={styles.poweredByText}>Powered by</Text>
+        <Image
+          source={require("../../assets/bp-logo.png")}
+          style={styles.logo}
+          resizeMode="contain"
+        />
+      </View>
     </KeyboardAvoidingView>
   );
 }
@@ -93,11 +105,12 @@ const styles = StyleSheet.create({
     padding: 24,
     backgroundColor: "#fff",
   },
-  title: {
-    fontSize: 32,
-    fontWeight: "700",
+  appName: {
+    fontSize: 36,
+    fontWeight: "800",
     marginBottom: 4,
-    color: "#1a1a2e",
+    color: "#1a3a8f",
+    letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 16,
@@ -114,7 +127,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#fafafa",
   },
   button: {
-    backgroundColor: "#1a1a2e",
+    backgroundColor: "#1a3a8f",
     borderRadius: 8,
     padding: 16,
     alignItems: "center",
@@ -128,7 +141,7 @@ const styles = StyleSheet.create({
   },
   link: {
     textAlign: "center",
-    color: "#1a1a2e",
+    color: "#1a3a8f",
     fontSize: 14,
   },
   error: {
@@ -137,12 +150,30 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   devButton: {
-    marginTop: 24,
+    marginTop: 20,
     padding: 10,
     alignItems: "center",
   },
   devButtonText: {
     color: "#aaa",
     fontSize: 12,
+  },
+  poweredBy: {
+    position: "absolute",
+    bottom: 40,
+    left: 0,
+    right: 0,
+    alignItems: "center",
+  },
+  poweredByText: {
+    fontSize: 11,
+    color: "#999",
+    marginBottom: 6,
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
+  },
+  logo: {
+    width: 160,
+    height: 44,
   },
 });
