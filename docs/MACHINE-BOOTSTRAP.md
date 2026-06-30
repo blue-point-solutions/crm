@@ -10,6 +10,13 @@ in parallel per [`AGENTS.md`](../AGENTS.md).
 - The shared **rinehardramos** GitHub token authenticated:
   `gh auth login`  (or `export GH_TOKEN=…`). It needs `repo` + `project`.
 
+## Requirements / context (provided out-of-band)
+The client **requirements doc / brief is intentionally NOT in this repo** (it's a
+client document, not a technical artifact). The buildable scope lives in the
+**issues/tickets** + `AGENTS.md`. If an agent needs the fuller requirements for
+context, the **operator provides the doc directly** (paste it, or place it OUTSIDE
+the repo, e.g. `~/projects/_private/`). Never commit it.
+
 ## Pick a MACHINE_ID
 One unique id per machine — `M1`, `M2`, `M3`, … Never reuse another machine's id.
 Record it in the roster on issue #1 (architecture lock).
