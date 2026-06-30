@@ -48,6 +48,8 @@ GitHub has no lock, so claim then check for collisions:
 
 ```bash
 N=<issue>; TS=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+gh label create "claimed:$CRM_MACHINE_ID" --repo blue-point-solutions/crm \
+  --color ededed --description "Claimed by $CRM_MACHINE_ID" --force >/dev/null 2>&1  # labels must pre-exist
 gh issue edit $N --repo blue-point-solutions/crm \
   --add-label "claimed:$CRM_MACHINE_ID" --remove-label status:ready --add-label status:in-progress
 gh issue comment $N --repo blue-point-solutions/crm --body "🤖 CLAIM $CRM_MACHINE_ID $TS"
