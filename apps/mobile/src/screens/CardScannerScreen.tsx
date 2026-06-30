@@ -47,17 +47,8 @@ export default function CardScannerScreen({ onCapture, onCancel, navigation }: P
   const [isCameraReady, setIsCameraReady] = useState(false);
   const [torchEnabled, setTorchEnabled] = useState(false);
 
-  // Detection & capture state
-  const [isCardDetected, setIsCardDetectedState] = useState(false);
+  // Capture state
   const [isProcessing, setIsProcessing] = useState(false);
-
-  // Wire up the exported setter
-  useEffect(() => {
-    setCardDetected = setIsCardDetectedState;
-    return () => {
-      setCardDetected = () => undefined;
-    };
-  }, []);
 
   // Card bounding box dimensions (3.5 : 2 aspect ratio, 85% screen width)
   const boxWidth = screenWidth * 0.85;
@@ -98,7 +89,7 @@ export default function CardScannerScreen({ onCapture, onCancel, navigation }: P
 
     setIsProcessing(true);
     try {
-      const photo = await cameraRef.current.takePictureAsync({ quality: 0.92 });
+      const photo = await cameraRef.current.takePictureAsync({ quality: 0.92, shutterSound: false });
       if (!photo) return;
 
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -114,26 +105,7 @@ export default function CardScannerScreen({ onCapture, onCancel, navigation }: P
     }
   }, [isProcessing, handleCapture]);
 
-  // Simulate detection 2 s after camera is ready; triggers auto-capture 800 ms later
-  useEffect(() => {
-    if (!isCameraReady) return;
-
-    const detectionTimer = setTimeout(() => {
-      setIsCardDetectedState(true);
-    }, 2000);
-
-    return () => clearTimeout(detectionTimer);
-  }, [isCameraReady]);
-
-  useEffect(() => {
-    if (!isCardDetected) return;
-
-    const captureTimer = setTimeout(() => {
-      captureCard();
-    }, 800);
-
-    return () => clearTimeout(captureTimer);
-  }, [isCardDetected, captureCard]);
+  // No auto-capture — user presses the shutter button to capture.
 
   // ---------------------------------------------------------------------------
   // Gallery import
@@ -171,8 +143,6 @@ export default function CardScannerScreen({ onCapture, onCancel, navigation }: P
   // Render
   // ---------------------------------------------------------------------------
 
-  const borderColor = isCardDetected ? "#2ecc71" : "#888888";
-
   return (
     <View style={styles.root}>
       <CameraView
@@ -180,6 +150,7 @@ export default function CardScannerScreen({ onCapture, onCancel, navigation }: P
         style={StyleSheet.absoluteFill}
         facing={"back" as CameraType}
         enableTorch={torchEnabled}
+        mute
         onCameraReady={() => setIsCameraReady(true)}
       />
 
@@ -195,7 +166,7 @@ export default function CardScannerScreen({ onCapture, onCancel, navigation }: P
           <View
             style={[
               styles.cardBox,
-              { width: boxWidth, height: boxHeight, borderColor },
+              { width: boxWidth, height: boxHeight },
             ]}
           />
           <View style={styles.overlaySide} />
@@ -214,7 +185,7 @@ export default function CardScannerScreen({ onCapture, onCancel, navigation }: P
         pointerEvents="none"
       >
         <Text style={styles.guidanceText}>
-          {isCardDetected ? "Card detected!" : "Align card within the frame"}
+          Align card within the frame, then tap the button
         </Text>
       </View>
 
