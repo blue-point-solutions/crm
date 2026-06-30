@@ -7,4 +7,5 @@ export type RootStackParamList = {
   CameraPermission: undefined;
   CardScannerReview: { imageUri: string };
   CardScannerConfirm: undefined;
+  ContactDetail: { contactId: string };
 };
