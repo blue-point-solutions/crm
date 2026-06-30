@@ -6,6 +6,9 @@ import LoginScreen from "../screens/LoginScreen";
 import RegisterScreen from "../screens/RegisterScreen";
 import HomeScreen from "../screens/HomeScreen";
 import CardScannerScreen from "../screens/CardScannerScreen";
+import CameraPermissionScreen from "../screens/CameraPermissionScreen";
+import CardScannerReviewScreen from "../screens/CardScannerReviewScreen";
+import CardScannerConfirmScreen from "../screens/CardScannerConfirmScreen";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -20,6 +23,9 @@ export default function RootNavigator() {
         <Stack.Screen name="Register" component={RegisterScreen} />
         <Stack.Screen name="Home" component={HomeScreen} />
         <Stack.Screen name="CardScanner" component={CardScannerScreen} />
+        <Stack.Screen name="CameraPermission" component={CameraPermissionScreen} />
+        <Stack.Screen name="CardScannerReview" component={CardScannerReviewScreen} />
+        <Stack.Screen name="CardScannerConfirm" component={CardScannerConfirmScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
