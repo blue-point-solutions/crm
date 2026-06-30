@@ -27,7 +27,7 @@ export default function RegisterScreen({ navigation }: Props) {
     setLoading(true);
     try {
       await register(email.trim(), password, name.trim());
-      navigation.replace("Home");
+      navigation.replace("Dashboard");
     } catch (e: any) {
       setError(e.response?.data?.detail ?? "Registration failed. Please try again.");
     } finally {
@@ -96,8 +96,9 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: "700",
+    fontFamily: "OmnesBold",
     marginBottom: 4,
-    color: "#1a1a2e",
+    color: "#0c4aad",
   },
   subtitle: {
     fontSize: 16,
@@ -114,7 +115,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#fafafa",
   },
   button: {
-    backgroundColor: "#1a1a2e",
+    backgroundColor: "#0c4aad",
     borderRadius: 8,
     padding: 16,
     alignItems: "center",
@@ -124,11 +125,12 @@ const styles = StyleSheet.create({
   buttonText: {
     color: "#fff",
     fontWeight: "600",
+    fontFamily: "OmnesSemiBold",
     fontSize: 16,
   },
   link: {
     textAlign: "center",
-    color: "#1a1a2e",
+    color: "#0c4aad",
     fontSize: 14,
   },
   error: {

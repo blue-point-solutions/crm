@@ -7,9 +7,8 @@ type Props = NativeStackScreenProps<RootStackParamList, "CardScannerConfirm">;
 
 export default function CardScannerConfirmScreen({ navigation }: Props) {
   const handleViewContact = useCallback(() => {
-    // Placeholder navigation — contact detail screen is a separate ticket
-    console.log("[CardScannerConfirm] View Contact tapped (placeholder)");
-  }, []);
+    navigation.navigate("Contacts");
+  }, [navigation]);
 
   const handleScanAnother = useCallback(() => {
     navigation.navigate("CameraPermission");
@@ -50,6 +49,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: "700",
+    fontFamily: "OmnesBold",
     color: "#1a1a1a",
     marginBottom: 8,
   },
@@ -64,7 +64,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   primaryButton: {
-    backgroundColor: "#2563eb",
+    backgroundColor: "#0c4aad",
     borderRadius: 10,
     paddingVertical: 16,
     alignItems: "center",
@@ -72,6 +72,7 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     color: "#fff",
     fontWeight: "700",
+    fontFamily: "OmnesBold",
     fontSize: 16,
   },
   secondaryButton: {
@@ -84,6 +85,7 @@ const styles = StyleSheet.create({
   secondaryButtonText: {
     color: "#555",
     fontWeight: "600",
+    fontFamily: "OmnesSemiBold",
     fontSize: 16,
   },
 });

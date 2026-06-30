@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Image,
 } from "react-native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/types";
@@ -26,7 +27,7 @@ export default function LoginScreen({ navigation }: Props) {
     setLoading(true);
     try {
       await login(email.trim(), password);
-      navigation.replace("Home");
+      navigation.replace("Dashboard");
     } catch (e: any) {
       setError(e.response?.data?.detail ?? "Login failed. Please try again.");
     } finally {
@@ -39,7 +40,8 @@ export default function LoginScreen({ navigation }: Props) {
       style={styles.container}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      <Text style={styles.title}>CRM</Text>
+      {/* App name */}
+      <Text style={styles.appName}>BP Connect</Text>
       <Text style={styles.subtitle}>Sign in to your account</Text>
 
       {error && <Text style={styles.error}>{error}</Text>}
@@ -75,6 +77,23 @@ export default function LoginScreen({ navigation }: Props) {
       <TouchableOpacity onPress={() => navigation.navigate("Register")}>
         <Text style={styles.link}>Don't have an account? Register</Text>
       </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.devButton}
+        onPress={() => navigation.replace("Dashboard")}
+      >
+        <Text style={styles.devButtonText}>⚡ Dev: Skip Login</Text>
+      </TouchableOpacity>
+
+      {/* Powered by Blue Point Solutions */}
+      <View style={styles.poweredBy}>
+        <Text style={styles.poweredByText}>Powered by</Text>
+        <Image
+          source={require("../../assets/bp-logo.png")}
+          style={styles.logo}
+          resizeMode="contain"
+        />
+      </View>
     </KeyboardAvoidingView>
   );
 }
@@ -86,11 +105,13 @@ const styles = StyleSheet.create({
     padding: 24,
     backgroundColor: "#fff",
   },
-  title: {
-    fontSize: 32,
-    fontWeight: "700",
+  appName: {
+    fontSize: 36,
+    fontWeight: "800",
+    fontFamily: "OmnesBold",
     marginBottom: 4,
-    color: "#1a1a2e",
+    color: "#0c4aad",
+    letterSpacing: -0.5,
   },
   subtitle: {
     fontSize: 16,
@@ -107,7 +128,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#fafafa",
   },
   button: {
-    backgroundColor: "#1a1a2e",
+    backgroundColor: "#0c4aad",
     borderRadius: 8,
     padding: 16,
     alignItems: "center",
@@ -117,16 +138,41 @@ const styles = StyleSheet.create({
   buttonText: {
     color: "#fff",
     fontWeight: "600",
+    fontFamily: "OmnesSemiBold",
     fontSize: 16,
   },
   link: {
     textAlign: "center",
-    color: "#1a1a2e",
+    color: "#0c4aad",
     fontSize: 14,
   },
   error: {
     color: "#c0392b",
     marginBottom: 12,
     fontSize: 14,
+  },
+  devButton: {
+    marginTop: 20,
+    padding: 10,
+    alignItems: "center",
+  },
+  devButtonText: {
+    color: "#aaa",
+    fontSize: 12,
+  },
+  poweredBy: {
+    alignItems: "center",
+    marginTop: 32,
+  },
+  poweredByText: {
+    fontSize: 11,
+    color: "#999",
+    marginBottom: 6,
+    letterSpacing: 0.5,
+    textTransform: "uppercase",
+  },
+  logo: {
+    width: 160,
+    height: 44,
   },
 });

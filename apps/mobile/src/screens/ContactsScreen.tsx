@@ -71,14 +71,15 @@ function tempLabel(temp?: LeadTemp): string {
 
 interface ContactRowProps {
   item: ContactListItem;
+  onPress: () => void;
 }
 
-function ContactRow({ item }: ContactRowProps) {
+function ContactRow({ item, onPress }: ContactRowProps) {
   const temp = item.leadTemperature as LeadTemp | undefined;
   const barColor = completenessBarColor(item.completenessScore);
 
   return (
-    <View style={styles.row}>
+    <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={0.75}>
       <View style={styles.rowContent}>
         {/* Avatar */}
         <View style={[styles.avatar, { backgroundColor: avatarColor(temp) }]}>
@@ -126,7 +127,7 @@ function ContactRow({ item }: ContactRowProps) {
           </View>
         </View>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 
@@ -220,7 +221,12 @@ export default function ContactsScreen() {
       <FlatList
         data={filtered}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <ContactRow item={item} />}
+        renderItem={({ item }) => (
+            <ContactRow
+              item={item}
+              onPress={() => navigation.navigate("ContactDetail", { contactId: item.id })}
+            />
+          )}
         refreshing={refreshing}
         onRefresh={handleRefresh}
         contentContainerStyle={filtered.length === 0 ? styles.emptyContainer : styles.listContent}
@@ -273,11 +279,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: "700",
-    color: "#1a1a2e",
+    fontFamily: "OmnesBold",
+    color: "#0c4aad",
   },
   countBadge: {
     marginLeft: 10,
-    backgroundColor: "#1a1a2e",
+    backgroundColor: "#0c4aad",
     borderRadius: 12,
     paddingHorizontal: 8,
     paddingVertical: 2,
@@ -288,6 +295,7 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontSize: 13,
     fontWeight: "600",
+    fontFamily: "OmnesSemiBold",
   },
 
   // Search
@@ -308,7 +316,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 15,
-    color: "#1a1a2e",
+    color: "#0c4aad",
   },
 
   // Chips
@@ -327,7 +335,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#e0e0e0",
   },
   chipActive: {
-    backgroundColor: "#1a1a2e",
+    backgroundColor: "#0c4aad",
   },
   chipText: {
     fontSize: 13,
@@ -379,6 +387,7 @@ const styles = StyleSheet.create({
   avatarText: {
     color: "#ffffff",
     fontWeight: "700",
+    fontFamily: "OmnesBold",
     fontSize: 16,
   },
 
@@ -399,7 +408,8 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 15,
     fontWeight: "700",
-    color: "#1a1a2e",
+    fontFamily: "OmnesBold",
+    color: "#0c4aad",
     marginBottom: 2,
   },
   company: {
@@ -426,10 +436,12 @@ const styles = StyleSheet.create({
   badgeText: {
     fontSize: 11,
     fontWeight: "600",
+    fontFamily: "OmnesSemiBold",
   },
   scoreText: {
     fontSize: 11,
     fontWeight: "600",
+    fontFamily: "OmnesSemiBold",
     color: "#757575",
   },
 
@@ -457,7 +469,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   clearBtn: {
-    backgroundColor: "#1a1a2e",
+    backgroundColor: "#0c4aad",
     borderRadius: 20,
     paddingHorizontal: 20,
     paddingVertical: 10,
@@ -465,6 +477,7 @@ const styles = StyleSheet.create({
   clearBtnText: {
     color: "#ffffff",
     fontWeight: "600",
+    fontFamily: "OmnesSemiBold",
     fontSize: 14,
   },
 
@@ -476,7 +489,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: "#1a1a2e",
+    backgroundColor: "#0c4aad",
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#000",
