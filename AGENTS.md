@@ -121,12 +121,11 @@ if all its dependencies are now Done, set it `status:ready` + Project Ready.
    chain, shared `__init__` exports) are labeled `hotspot` on their tickets and
    are worked **one at a time** — claim implies an exclusive lock on that hotspot;
    if another hotspot ticket is `in-progress`, pick something else.
-7. **CI is the regression gate — PROCEDURAL here.** This private repo is on a plan
-   without branch protection, so "PR-only, green-before-merge, never push to main"
-   is **enforced by discipline, not by GitHub**. CI workflows still run on PRs —
-   you MUST wait for green and MUST NOT `git push` to `main`. If your change
-   reddens `main`, you own the immediate fix. (If hard enforcement is wanted, the
-   repo can be made public or the org upgraded, then branch protection switched on.)
+7. **CI is the regression gate — `main` is branch-protected.** Direct pushes to
+   `main` are blocked, a PR is required to merge, and force-pushes/deletions are
+   off. Required CI status checks are added once CI exists (architecture-lock
+   ticket). You still self-merge only on **green** CI; if your change reddens
+   `main`, you own the immediate fix.
 
 ---
 
