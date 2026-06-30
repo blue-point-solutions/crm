@@ -5,6 +5,7 @@ import { RootStackParamList } from "./types";
 import LoginScreen from "../screens/LoginScreen";
 import RegisterScreen from "../screens/RegisterScreen";
 import HomeScreen from "../screens/HomeScreen";
+import BiometricConsentScreen from "../screens/BiometricConsentScreen";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -18,6 +19,10 @@ export default function RootNavigator() {
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="Register" component={RegisterScreen} />
         <Stack.Screen name="Home" component={HomeScreen} />
+        <Stack.Screen
+          name="BiometricConsent"
+          component={BiometricConsentScreen}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );

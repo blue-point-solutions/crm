@@ -3,12 +3,14 @@ import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/types";
 import { logout } from "../api/auth";
+import { clearBiometricToken } from "../utils/biometrics";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Home">;
 
 export default function HomeScreen({ navigation }: Props) {
-  function handleLogout() {
+  async function handleLogout() {
     logout();
+    await clearBiometricToken();
     navigation.replace("Login");
   }
 
