@@ -27,7 +27,7 @@ export default function RegisterScreen({ navigation }: Props) {
     setLoading(true);
     try {
       await register(email.trim(), password, name.trim());
-      navigation.replace("Home");
+      navigation.replace("Dashboard");
     } catch (e: any) {
       setError(e.response?.data?.detail ?? "Registration failed. Please try again.");
     } finally {

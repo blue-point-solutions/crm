@@ -9,4 +9,5 @@ export type RootStackParamList = {
   CardScannerReview: { imageUri: string };
   CardScannerConfirm: undefined;
   ContactDetail: { contactId: string };
+  BiometricConsent: { accessToken: string };
 };

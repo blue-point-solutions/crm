@@ -7,9 +7,8 @@ type Props = NativeStackScreenProps<RootStackParamList, "CardScannerConfirm">;
 
 export default function CardScannerConfirmScreen({ navigation }: Props) {
   const handleViewContact = useCallback(() => {
-    // Placeholder navigation — contact detail screen is a separate ticket
-    console.log("[CardScannerConfirm] View Contact tapped (placeholder)");
-  }, []);
+    navigation.navigate("Contacts");
+  }, [navigation]);
 
   const handleScanAnother = useCallback(() => {
     navigation.navigate("CameraPermission");
