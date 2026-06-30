@@ -64,8 +64,9 @@ API, offline-sync API to be added). Dependencies are encoded as `Depends-On`;
 never build a downstream ticket before its deps are Done.
 
 ## 6. MACHINE_ID roster
-| ID | Machine |
-|---|---|
-| M1 | vivobook (this machine) |
-| M2 | _(unassigned)_ |
-| M3 | _(unassigned)_ |
+| ID | Machine | Lane |
+|---|---|---|
+| M1 | vivobook | general (backend/lib) |
+| MAC1 | Mac mini | macOS/iOS builder (see `prompts/agent-bootstrap-ios-macmini.md`, `docs/IOS-SETUP.md`) |
+| M2 | _(unassigned)_ | general |
+| M3 | _(unassigned)_ | general |
