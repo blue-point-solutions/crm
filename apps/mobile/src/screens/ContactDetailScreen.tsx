@@ -175,9 +175,28 @@ export default function ContactDetailScreen() {
   }
 
   function handleCancel() {
-    setDraftNotes(contact.notes);
-    setDraftPainPoint(contact.painPoint);
-    setEditMode(false);
+    const hasChanges =
+      draftNotes !== contact.notes || draftPainPoint !== contact.painPoint;
+    if (hasChanges) {
+      Alert.alert(
+        "Discard Changes?",
+        "Your edits will not be saved.",
+        [
+          { text: "Keep Editing", style: "cancel" },
+          {
+            text: "Discard",
+            style: "destructive",
+            onPress: () => {
+              setDraftNotes(contact.notes);
+              setDraftPainPoint(contact.painPoint);
+              setEditMode(false);
+            },
+          },
+        ]
+      );
+    } else {
+      setEditMode(false);
+    }
   }
 
   const avatarBg = avatarColor(contact.leadTemperature);

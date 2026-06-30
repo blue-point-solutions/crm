@@ -10,6 +10,7 @@ import {
   Modal,
   ActivityIndicator,
   Switch,
+  Alert,
 } from "react-native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/types";
@@ -227,7 +228,14 @@ export default function CardScannerReviewScreen({ navigation, route }: Props) {
   }, [draft, navigation]);
 
   const handleDiscard = useCallback(() => {
-    navigation.goBack();
+    Alert.alert(
+      "Discard Card?",
+      "All extracted information will be lost.",
+      [
+        { text: "Keep Editing", style: "cancel" },
+        { text: "Discard", style: "destructive", onPress: () => navigation.goBack() },
+      ]
+    );
   }, [navigation]);
 
   if (isLoading) {
