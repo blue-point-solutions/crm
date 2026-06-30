@@ -548,6 +548,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 17,
     fontWeight: "700",
+    fontFamily: "OmnesBold",
     color: "#1a1a1a",
     marginTop: 8,
     marginBottom: 16,

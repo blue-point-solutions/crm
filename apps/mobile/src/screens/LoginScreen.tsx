@@ -108,6 +108,7 @@ const styles = StyleSheet.create({
   appName: {
     fontSize: 36,
     fontWeight: "800",
+    fontFamily: "OmnesBold",
     marginBottom: 4,
     color: "#0c4aad",
     letterSpacing: -0.5,
@@ -137,6 +138,7 @@ const styles = StyleSheet.create({
   buttonText: {
     color: "#fff",
     fontWeight: "600",
+    fontFamily: "OmnesSemiBold",
     fontSize: 16,
   },
   link: {

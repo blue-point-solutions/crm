@@ -96,6 +96,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 32,
     fontWeight: "700",
+    fontFamily: "OmnesBold",
     marginBottom: 4,
     color: "#0c4aad",
   },
@@ -124,6 +125,7 @@ const styles = StyleSheet.create({
   buttonText: {
     color: "#fff",
     fontWeight: "600",
+    fontFamily: "OmnesSemiBold",
     fontSize: 16,
   },
   link: {

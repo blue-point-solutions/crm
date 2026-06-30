@@ -450,6 +450,7 @@ const styles = StyleSheet.create({
   greeting: {
     fontSize: 22,
     fontWeight: "700",
+    fontFamily: "OmnesBold",
     color: "#fff",
     marginBottom: 4,
   },
@@ -491,6 +492,7 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 28,
     fontWeight: "800",
+    fontFamily: "OmnesBold",
     marginBottom: 4,
   },
   statLabel: {
@@ -513,12 +515,14 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 17,
     fontWeight: "700",
+    fontFamily: "OmnesBold",
     color: "#0c4aad",
   },
   viewAll: {
     fontSize: 13,
     color: "#0c4aad",
     fontWeight: "600",
+    fontFamily: "OmnesSemiBold",
   },
   badge: {
     backgroundColor: "#f59e0b",
@@ -533,6 +537,7 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 11,
     fontWeight: "700",
+    fontFamily: "OmnesBold",
   },
 
   // Horizontal contact cards
@@ -565,10 +570,12 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontWeight: "700",
+    fontFamily: "OmnesBold",
   },
   contactName: {
     fontSize: 12,
     fontWeight: "600",
+    fontFamily: "OmnesSemiBold",
     color: "#0c4aad",
     textAlign: "center",
     marginBottom: 2,
@@ -601,6 +608,7 @@ const styles = StyleSheet.create({
   listRowName: {
     fontSize: 14,
     fontWeight: "600",
+    fontFamily: "OmnesSemiBold",
     color: "#0c4aad",
     marginBottom: 2,
   },
@@ -612,6 +620,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#d97706",
     fontWeight: "600",
+    fontFamily: "OmnesSemiBold",
   },
   inactiveLabel: {
     fontSize: 12,
@@ -639,6 +648,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     fontWeight: "600",
+    fontFamily: "OmnesSemiBold",
     color: "#fff",
   },
   scanStripArrow: {

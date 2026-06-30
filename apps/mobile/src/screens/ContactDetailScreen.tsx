@@ -490,6 +490,7 @@ const styles = StyleSheet.create({
     color: "#0c4aad",
     fontSize: 16,
     fontWeight: "600",
+    fontFamily: "OmnesSemiBold",
     marginRight: 4,
   },
 
@@ -514,12 +515,14 @@ const styles = StyleSheet.create({
   avatarLargeText: {
     color: "#ffffff",
     fontWeight: "800",
+    fontFamily: "OmnesBold",
     fontSize: 32,
     letterSpacing: 1,
   },
   fullName: {
     fontSize: 24,
     fontWeight: "800",
+    fontFamily: "OmnesBold",
     color: "#0c4aad",
     textAlign: "center",
     marginBottom: 4,
@@ -540,6 +543,7 @@ const styles = StyleSheet.create({
   completenessText: {
     fontSize: 13,
     fontWeight: "700",
+    fontFamily: "OmnesBold",
   },
   actionRow: {
     flexDirection: "row",
@@ -571,6 +575,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 13,
     fontWeight: "700",
+    fontFamily: "OmnesBold",
     color: "#757575",
     textTransform: "uppercase",
     letterSpacing: 0.8,
@@ -670,6 +675,7 @@ const styles = StyleSheet.create({
   chipText: {
     fontSize: 12,
     fontWeight: "600",
+    fontFamily: "OmnesSemiBold",
     color: "#424242",
   },
 
@@ -711,6 +717,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#0c4aad",
     fontWeight: "600",
+    fontFamily: "OmnesSemiBold",
   },
 
   // Edit actions
@@ -729,6 +736,7 @@ const styles = StyleSheet.create({
   saveBtnText: {
     color: "#ffffff",
     fontWeight: "700",
+    fontFamily: "OmnesBold",
     fontSize: 15,
   },
   cancelBtn: {
@@ -741,6 +749,7 @@ const styles = StyleSheet.create({
   cancelBtnText: {
     color: "#424242",
     fontWeight: "700",
+    fontFamily: "OmnesBold",
     fontSize: 15,
   },
 
@@ -802,6 +811,7 @@ const styles = StyleSheet.create({
   logActivityBtnText: {
     color: "#0c4aad",
     fontWeight: "700",
+    fontFamily: "OmnesBold",
     fontSize: 14,
   },
 

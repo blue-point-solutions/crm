@@ -49,6 +49,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: "700",
+    fontFamily: "OmnesBold",
     color: "#1a1a1a",
     marginBottom: 8,
   },
@@ -71,6 +72,7 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     color: "#fff",
     fontWeight: "700",
+    fontFamily: "OmnesBold",
     fontSize: 16,
   },
   secondaryButton: {
@@ -83,6 +85,7 @@ const styles = StyleSheet.create({
   secondaryButtonText: {
     color: "#555",
     fontWeight: "600",
+    fontFamily: "OmnesSemiBold",
     fontSize: 16,
   },
 });

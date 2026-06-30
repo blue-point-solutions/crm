@@ -39,6 +39,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: "700",
+    fontFamily: "OmnesBold",
     color: "#0c4aad",
     marginBottom: 16,
   },
@@ -58,6 +59,7 @@ const styles = StyleSheet.create({
   buttonText: {
     color: "#fff",
     fontWeight: "600",
+    fontFamily: "OmnesSemiBold",
     fontSize: 16,
   },
   skip: {

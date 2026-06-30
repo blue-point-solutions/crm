@@ -279,6 +279,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: "700",
+    fontFamily: "OmnesBold",
     color: "#0c4aad",
   },
   countBadge: {
@@ -294,6 +295,7 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontSize: 13,
     fontWeight: "600",
+    fontFamily: "OmnesSemiBold",
   },
 
   // Search
@@ -385,6 +387,7 @@ const styles = StyleSheet.create({
   avatarText: {
     color: "#ffffff",
     fontWeight: "700",
+    fontFamily: "OmnesBold",
     fontSize: 16,
   },
 
@@ -405,6 +408,7 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 15,
     fontWeight: "700",
+    fontFamily: "OmnesBold",
     color: "#0c4aad",
     marginBottom: 2,
   },
@@ -432,10 +436,12 @@ const styles = StyleSheet.create({
   badgeText: {
     fontSize: 11,
     fontWeight: "600",
+    fontFamily: "OmnesSemiBold",
   },
   scoreText: {
     fontSize: 11,
     fontWeight: "600",
+    fontFamily: "OmnesSemiBold",
     color: "#757575",
   },
 
@@ -471,6 +477,7 @@ const styles = StyleSheet.create({
   clearBtnText: {
     color: "#ffffff",
     fontWeight: "600",
+    fontFamily: "OmnesSemiBold",
     fontSize: 14,
   },
 
