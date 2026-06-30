@@ -26,7 +26,7 @@ export default function LoginScreen({ navigation }: Props) {
     setLoading(true);
     try {
       await login(email.trim(), password);
-      navigation.replace("Home");
+      navigation.replace("Dashboard");
     } catch (e: any) {
       setError(e.response?.data?.detail ?? "Login failed. Please try again.");
     } finally {
