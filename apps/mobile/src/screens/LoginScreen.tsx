@@ -75,6 +75,13 @@ export default function LoginScreen({ navigation }: Props) {
       <TouchableOpacity onPress={() => navigation.navigate("Register")}>
         <Text style={styles.link}>Don't have an account? Register</Text>
       </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.devButton}
+        onPress={() => navigation.replace("Dashboard")}
+      >
+        <Text style={styles.devButtonText}>⚡ Dev: Skip Login</Text>
+      </TouchableOpacity>
     </KeyboardAvoidingView>
   );
 }
@@ -128,5 +135,14 @@ const styles = StyleSheet.create({
     color: "#c0392b",
     marginBottom: 12,
     fontSize: 14,
+  },
+  devButton: {
+    marginTop: 24,
+    padding: 10,
+    alignItems: "center",
+  },
+  devButtonText: {
+    color: "#aaa",
+    fontSize: 12,
   },
 });
