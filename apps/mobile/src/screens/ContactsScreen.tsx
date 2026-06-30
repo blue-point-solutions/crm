@@ -71,15 +71,14 @@ function tempLabel(temp?: LeadTemp): string {
 
 interface ContactRowProps {
   item: ContactListItem;
-  onPress: () => void;
 }
 
-function ContactRow({ item, onPress }: ContactRowProps) {
+function ContactRow({ item }: ContactRowProps) {
   const temp = item.leadTemperature as LeadTemp | undefined;
   const barColor = completenessBarColor(item.completenessScore);
 
   return (
-    <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={0.75}>
+    <View style={styles.row}>
       <View style={styles.rowContent}>
         {/* Avatar */}
         <View style={[styles.avatar, { backgroundColor: avatarColor(temp) }]}>
@@ -127,7 +126,7 @@ function ContactRow({ item, onPress }: ContactRowProps) {
           </View>
         </View>
       </View>
-    </TouchableOpacity>
+    </View>
   );
 }
 
@@ -221,12 +220,7 @@ export default function ContactsScreen() {
       <FlatList
         data={filtered}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-            <ContactRow
-              item={item}
-              onPress={() => navigation.navigate("ContactDetail", { contactId: item.id })}
-            />
-          )}
+        renderItem={({ item }) => <ContactRow item={item} />}
         refreshing={refreshing}
         onRefresh={handleRefresh}
         contentContainerStyle={filtered.length === 0 ? styles.emptyContainer : styles.listContent}
