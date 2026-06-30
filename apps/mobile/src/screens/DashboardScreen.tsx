@@ -271,7 +271,7 @@ export default function DashboardScreen({ navigation }: Props) {
         <StatTile
           value={data.total_contacts}
           label="Total Contacts"
-          color="#2563eb"
+          color="#0c4aad"
         />
         <StatTile
           value={data.hot_leads}
@@ -439,7 +439,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    backgroundColor: "#1a1a2e",
+    backgroundColor: "#0c4aad",
     paddingTop: 60,
     paddingBottom: 24,
     paddingHorizontal: 20,
@@ -517,11 +517,11 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 17,
     fontWeight: "700",
-    color: "#1a1a2e",
+    color: "#0c4aad",
   },
   viewAll: {
     fontSize: 13,
-    color: "#2563eb",
+    color: "#0c4aad",
     fontWeight: "600",
   },
   badge: {
@@ -560,7 +560,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: "#1a1a2e",
+    backgroundColor: "#0c4aad",
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 8,
@@ -573,7 +573,7 @@ const styles = StyleSheet.create({
   contactName: {
     fontSize: 12,
     fontWeight: "600",
-    color: "#1a1a2e",
+    color: "#0c4aad",
     textAlign: "center",
     marginBottom: 2,
   },
@@ -605,7 +605,7 @@ const styles = StyleSheet.create({
   listRowName: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#1a1a2e",
+    color: "#0c4aad",
     marginBottom: 2,
   },
   listRowSub: {
@@ -627,7 +627,7 @@ const styles = StyleSheet.create({
   scanCard: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#1a1a2e",
+    backgroundColor: "#0c4aad",
     borderRadius: 14,
     marginHorizontal: 16,
     marginTop: 4,

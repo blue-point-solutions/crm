@@ -487,7 +487,7 @@ const styles = StyleSheet.create({
 
   // Nav button
   navBtn: {
-    color: "#1a1a2e",
+    color: "#0c4aad",
     fontSize: 16,
     fontWeight: "600",
     marginRight: 4,
@@ -520,7 +520,7 @@ const styles = StyleSheet.create({
   fullName: {
     fontSize: 24,
     fontWeight: "800",
-    color: "#1a1a2e",
+    color: "#0c4aad",
     textAlign: "center",
     marginBottom: 4,
   },
@@ -613,7 +613,7 @@ const styles = StyleSheet.create({
   infoValue: {
     flex: 1,
     fontSize: 14,
-    color: "#1a1a2e",
+    color: "#0c4aad",
     fontWeight: "500",
   },
   link: {
@@ -683,7 +683,7 @@ const styles = StyleSheet.create({
   },
   notesText: {
     fontSize: 14,
-    color: "#1a1a2e",
+    color: "#0c4aad",
     lineHeight: 20,
     marginTop: 4,
   },
@@ -696,7 +696,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 10,
     fontSize: 14,
-    color: "#1a1a2e",
+    color: "#0c4aad",
     minHeight: 72,
     marginTop: 4,
     textAlignVertical: "top",
@@ -709,7 +709,7 @@ const styles = StyleSheet.create({
   },
   followUpDate: {
     fontSize: 14,
-    color: "#1a1a2e",
+    color: "#0c4aad",
     fontWeight: "600",
   },
 
@@ -721,7 +721,7 @@ const styles = StyleSheet.create({
   },
   saveBtn: {
     flex: 1,
-    backgroundColor: "#1a1a2e",
+    backgroundColor: "#0c4aad",
     borderRadius: 10,
     paddingVertical: 12,
     alignItems: "center",
@@ -783,7 +783,7 @@ const styles = StyleSheet.create({
   },
   activityContent: {
     fontSize: 14,
-    color: "#1a1a2e",
+    color: "#0c4aad",
     lineHeight: 20,
   },
   activityDate: {
@@ -794,13 +794,13 @@ const styles = StyleSheet.create({
   logActivityBtn: {
     marginTop: 12,
     borderWidth: 1.5,
-    borderColor: "#1a1a2e",
+    borderColor: "#0c4aad",
     borderRadius: 10,
     paddingVertical: 10,
     alignItems: "center",
   },
   logActivityBtnText: {
-    color: "#1a1a2e",
+    color: "#0c4aad",
     fontWeight: "700",
     fontSize: 14,
   },

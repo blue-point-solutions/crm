@@ -279,11 +279,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: "700",
-    color: "#1a1a2e",
+    color: "#0c4aad",
   },
   countBadge: {
     marginLeft: 10,
-    backgroundColor: "#1a1a2e",
+    backgroundColor: "#0c4aad",
     borderRadius: 12,
     paddingHorizontal: 8,
     paddingVertical: 2,
@@ -314,7 +314,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 15,
-    color: "#1a1a2e",
+    color: "#0c4aad",
   },
 
   // Chips
@@ -333,7 +333,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#e0e0e0",
   },
   chipActive: {
-    backgroundColor: "#1a1a2e",
+    backgroundColor: "#0c4aad",
   },
   chipText: {
     fontSize: 13,
@@ -405,7 +405,7 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 15,
     fontWeight: "700",
-    color: "#1a1a2e",
+    color: "#0c4aad",
     marginBottom: 2,
   },
   company: {
@@ -463,7 +463,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   clearBtn: {
-    backgroundColor: "#1a1a2e",
+    backgroundColor: "#0c4aad",
     borderRadius: 20,
     paddingHorizontal: 20,
     paddingVertical: 10,
@@ -482,7 +482,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: "#1a1a2e",
+    backgroundColor: "#0c4aad",
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#000",

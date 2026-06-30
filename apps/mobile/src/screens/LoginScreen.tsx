@@ -109,7 +109,7 @@ const styles = StyleSheet.create({
     fontSize: 36,
     fontWeight: "800",
     marginBottom: 4,
-    color: "#1a3a8f",
+    color: "#0c4aad",
     letterSpacing: -0.5,
   },
   subtitle: {
@@ -127,7 +127,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#fafafa",
   },
   button: {
-    backgroundColor: "#1a3a8f",
+    backgroundColor: "#0c4aad",
     borderRadius: 8,
     padding: 16,
     alignItems: "center",
@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
   },
   link: {
     textAlign: "center",
-    color: "#1a3a8f",
+    color: "#0c4aad",
     fontSize: 14,
   },
   error: {
