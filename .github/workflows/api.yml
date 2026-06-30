@@ -1,0 +1,46 @@
+name: api
+
+# Backend CI. The editable platform-* deps require the library as a sibling, so
+# we check out blue-point-solutions/crm AND rinehardramos/library side-by-side.
+# Library access uses the LIBRARY_PAT secret (a read-only PAT for the library).
+on:
+  pull_request:
+    branches: [main]
+    paths: ["apps/api/**", ".github/workflows/api.yml"]
+  push:
+    branches: [main]
+    paths: ["apps/api/**", ".github/workflows/api.yml"]
+
+jobs:
+  api:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout crm
+        uses: actions/checkout@v4
+        with:
+          path: crm
+      - name: Checkout library (sibling)
+        uses: actions/checkout@v4
+        with:
+          repository: rinehardramos/library
+          path: library
+          token: ${{ secrets.LIBRARY_PAT }}
+      - uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+      - name: Install deps
+        working-directory: crm/apps/api
+        run: uv sync --extra dev -p 3.12
+      - name: Ruff (lint + format)
+        working-directory: crm/apps/api
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+      - name: Mypy (strict)
+        working-directory: crm/apps/api
+        run: uv run mypy
+      - name: Pytest
+        working-directory: crm/apps/api
+        run: uv run pytest -q
+      # NOTE: DB integration tests + a postgres service are added by the first
+      # feature ticket that needs them (#7 auth / #8 contacts).
