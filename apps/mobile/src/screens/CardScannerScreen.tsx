@@ -11,7 +11,6 @@ import { CameraView, CameraType, FlashMode } from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
 import * as Haptics from "expo-haptics";
 import * as ImageManipulator from "expo-image-manipulator";
-import { Audio } from "expo-av";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/types";
 import { requestPhotoLibraryPermission } from "../utils/permissions";
@@ -90,15 +89,8 @@ export default function CardScannerScreen({ onCapture, onCancel, navigation }: P
 
     setIsProcessing(true);
     try {
-      const photo = await cameraRef.current.takePictureAsync({ quality: 0.92, shutterSound: false });
+      const photo = await cameraRef.current.takePictureAsync({ quality: 0.92 });
       if (!photo) return;
-
-      // Play a quiet custom shutter click (system sound is muted via mute/shutterSound:false)
-      const { sound } = await Audio.Sound.createAsync(
-        require("../../assets/shutter-click.wav"),
-        { volume: 0.4 }
-      );
-      sound.playAsync().finally(() => sound.unloadAsync());
 
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
@@ -158,7 +150,6 @@ export default function CardScannerScreen({ onCapture, onCancel, navigation }: P
         style={StyleSheet.absoluteFill}
         facing={"back" as CameraType}
         enableTorch={torchEnabled}
-        mute
         onCameraReady={() => setIsCameraReady(true)}
       />
 
