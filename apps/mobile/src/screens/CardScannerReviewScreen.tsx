@@ -215,7 +215,14 @@ export default function CardScannerReviewScreen({ navigation, route }: Props) {
     (draft.firstName.trim().length > 0 || draft.lastName.trim().length > 0);
 
   const handleSave = useCallback(() => {
-    console.log("[CardScannerReview] Saving draft:", JSON.stringify(draft, null, 2));
+    // Filter out empty/sparse entries before saving
+    const cleanDraft = {
+      ...draft,
+      phones: draft.phones.filter((p) => p && p.trim().length > 0),
+      emails: draft.emails.filter((e) => e && e.trim().length > 0),
+    };
+    console.log("[CardScannerReview] Saving draft:", JSON.stringify(cleanDraft, null, 2));
+    // TODO: Replace with real API call when backend (#7, #8) is ready
     navigation.replace("CardScannerConfirm");
   }, [draft, navigation]);
 
@@ -248,10 +255,13 @@ export default function CardScannerReviewScreen({ navigation, route }: Props) {
               This contact may already exist.
             </Text>
             <View style={styles.duplicateActions}>
-              <TouchableOpacity style={styles.duplicateBtn}>
+              <TouchableOpacity
+                style={styles.duplicateBtn}
+                onPress={() => navigation.navigate("Contacts")}
+              >
                 <Text style={styles.duplicateBtnText}>View Existing</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.duplicateBtn}>
+              <TouchableOpacity style={styles.duplicateBtn} onPress={handleSave}>
                 <Text style={styles.duplicateBtnText}>Save as New</Text>
               </TouchableOpacity>
             </View>

@@ -36,14 +36,18 @@ export default function CameraPermissionScreen({ navigation }: Props) {
       return;
     }
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: false,
-      quality: 0.92,
-    });
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: false,
+        quality: 0.92,
+      });
 
-    if (!result.canceled && result.assets.length > 0) {
-      navigation.replace("CardScannerReview", { imageUri: result.assets[0].uri });
+      if (!result.canceled && result.assets.length > 0) {
+        navigation.replace("CardScannerReview", { imageUri: result.assets[0].uri });
+      }
+    } catch {
+      Alert.alert("Error", "Could not open photo library. Please try again.");
     }
   }, [navigation]);
 

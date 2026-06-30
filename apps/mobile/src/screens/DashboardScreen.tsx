@@ -347,13 +347,13 @@ export default function DashboardScreen({ navigation }: Props) {
       {/* ------------------------------------------------------------------ */}
       {/* Follow-up Reminders                                                  */}
       {/* ------------------------------------------------------------------ */}
-      {data.upcoming_reminders.length > 0 && (
+      {(data.upcoming_reminders?.length ?? 0) > 0 && (
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Follow-ups Due</Text>
             <View style={styles.badge}>
               <Text style={styles.badgeText}>
-                {data.upcoming_reminders.length}
+                {data.upcoming_reminders?.length ?? 0}
               </Text>
             </View>
           </View>
@@ -383,7 +383,7 @@ export default function DashboardScreen({ navigation }: Props) {
       {/* ------------------------------------------------------------------ */}
       {/* Inactive Contacts                                                    */}
       {/* ------------------------------------------------------------------ */}
-      {data.inactive_30d.length > 0 && (
+      {(data.inactive_30d?.length ?? 0) > 0 && (
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Needs Attention</Text>

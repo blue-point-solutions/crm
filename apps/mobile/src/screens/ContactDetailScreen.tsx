@@ -245,7 +245,7 @@ export default function ContactDetailScreen() {
             {contact.linkedin ? (
               <TouchableOpacity
                 style={styles.actionBtn}
-                onPress={() => openUrl(contact.linkedin)}
+                onPress={() => contact.linkedin && openUrl(contact.linkedin)}
               >
                 <Text style={styles.actionIcon}>🔗</Text>
                 <Text style={styles.actionLabel}>LinkedIn</Text>
