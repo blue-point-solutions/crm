@@ -1,29 +1,44 @@
+import { extractTextFromImage, isSupported } from "expo-text-extractor";
 import { OcrResult } from "../types/contact";
+import { parseCardText } from "./ocrParser";
 
 /**
- * Parses a business card image and returns extracted OCR fields.
+ * Parses a business card image entirely on-device: ML Kit (Android) /
+ * Vision (iOS) via expo-text-extractor for text recognition, then
+ * parseCardText() for structured field extraction. By design this never
+ * leaves the device -- no network call, no backend round-trip. A backend
+ * OCR fallback (for cases where on-device recognition proves insufficient)
+ * is an intentional future seam, not built here: see platform-ocr-cards
+ * (ticket #4) for the pluggable-provider shape this should slot into.
  *
- * TODO: Replace with POST /cards/scan API call (platform-ocr-cards)
+ * expo-text-extractor is a native module -- `isSupported` is false on web
+ * (no ML Kit/Vision there), where this falls back to a fixed mock result so
+ * the RN-Web dev flow (and the Playwright e2e test) stay exercisable without
+ * a native build. On a real device/emulator this always uses the real
+ * on-device engine, never the mock.
  */
 export async function parseCardImage(imageUri: string): Promise<OcrResult> {
-  // Simulate processing delay
-  await new Promise<void>((resolve) => setTimeout(resolve, 1500));
+  if (!isSupported) {
+    return mockCardResult();
+  }
 
-  // Mock result — some fields have confidence < 0.7 to test amber highlighting
+  const lines = await extractTextFromImage(imageUri);
+  return parseCardText(lines);
+}
+
+function mockCardResult(): OcrResult {
   return {
     firstName: { value: "Jane", confidence: 0.95 },
     lastName: { value: "Smith", confidence: 0.92 },
-    jobTitle: { value: "Product Manager", confidence: 0.61 }, // low confidence
+    jobTitle: { value: "Product Manager", confidence: 0.61 },
     company: { value: "Acme Corp", confidence: 0.88 },
     phones: [
       { value: "+1 555-867-5309", confidence: 0.78 },
-      { value: "+1 555-123-4567", confidence: 0.55 }, // low confidence
+      { value: "+1 555-123-4567", confidence: 0.55 },
     ],
-    emails: [
-      { value: "jane.smith@acme.com", confidence: 0.97 },
-    ],
-    website: { value: "www.acmecorp.com", confidence: 0.65 }, // low confidence
-    address: { value: "123 Main St, Springfield, IL 62701", confidence: 0.58 }, // low confidence
+    emails: [{ value: "jane.smith@acme.com", confidence: 0.97 }],
+    website: { value: "www.acmecorp.com", confidence: 0.65 },
+    address: { value: "123 Main St, Springfield, IL 62701", confidence: 0.58 },
     linkedin: { value: "linkedin.com/in/janesmith", confidence: 0.91 },
     facebook: undefined,
   };
