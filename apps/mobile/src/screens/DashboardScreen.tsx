@@ -271,7 +271,7 @@ export default function DashboardScreen({ navigation }: Props) {
         <StatTile
           value={data.total_contacts}
           label="Total Contacts"
-          color="#2563eb"
+          color="#0c4aad"
         />
         <StatTile
           value={data.hot_leads}
@@ -290,6 +290,18 @@ export default function DashboardScreen({ navigation }: Props) {
           color="#16a34a"
         />
       </View>
+
+      {/* ------------------------------------------------------------------ */}
+      {/* Scan CTA — compact strip                                            */}
+      {/* ------------------------------------------------------------------ */}
+      <TouchableOpacity
+        style={styles.scanStrip}
+        onPress={() => navigation.navigate("CameraPermission")}
+      >
+        <Text style={styles.scanStripIcon}>📷</Text>
+        <Text style={styles.scanStripText}>Scan a Business Card</Text>
+        <Text style={styles.scanStripArrow}>›</Text>
+      </TouchableOpacity>
 
       {/* ------------------------------------------------------------------ */}
       {/* Recent Contacts                                                      */}
@@ -335,13 +347,13 @@ export default function DashboardScreen({ navigation }: Props) {
       {/* ------------------------------------------------------------------ */}
       {/* Follow-up Reminders                                                  */}
       {/* ------------------------------------------------------------------ */}
-      {data.upcoming_reminders.length > 0 && (
+      {(data.upcoming_reminders?.length ?? 0) > 0 && (
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Follow-ups Due</Text>
             <View style={styles.badge}>
               <Text style={styles.badgeText}>
-                {data.upcoming_reminders.length}
+                {data.upcoming_reminders?.length ?? 0}
               </Text>
             </View>
           </View>
@@ -371,7 +383,7 @@ export default function DashboardScreen({ navigation }: Props) {
       {/* ------------------------------------------------------------------ */}
       {/* Inactive Contacts                                                    */}
       {/* ------------------------------------------------------------------ */}
-      {data.inactive_30d.length > 0 && (
+      {(data.inactive_30d?.length ?? 0) > 0 && (
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Needs Attention</Text>
@@ -401,22 +413,6 @@ export default function DashboardScreen({ navigation }: Props) {
         </View>
       )}
 
-      {/* ------------------------------------------------------------------ */}
-      {/* Scan CTA                                                             */}
-      {/* ------------------------------------------------------------------ */}
-      <TouchableOpacity
-        style={styles.scanCard}
-        onPress={() => navigation.navigate("CameraPermission")}
-      >
-        <Text style={styles.scanIcon}>📷</Text>
-        <View style={styles.scanTextBlock}>
-          <Text style={styles.scanTitle}>Scan a Business Card</Text>
-          <Text style={styles.scanSubtitle}>
-            Add a new contact instantly by scanning their card
-          </Text>
-        </View>
-        <Text style={styles.scanArrow}>›</Text>
-      </TouchableOpacity>
     </ScrollView>
   );
 }
@@ -439,7 +435,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    backgroundColor: "#1a1a2e",
+    backgroundColor: "#0c4aad",
     paddingTop: 60,
     paddingBottom: 24,
     paddingHorizontal: 20,
@@ -454,6 +450,7 @@ const styles = StyleSheet.create({
   greeting: {
     fontSize: 22,
     fontWeight: "700",
+    fontFamily: "OmnesBold",
     color: "#fff",
     marginBottom: 4,
   },
@@ -495,6 +492,7 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 28,
     fontWeight: "800",
+    fontFamily: "OmnesBold",
     marginBottom: 4,
   },
   statLabel: {
@@ -517,12 +515,14 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 17,
     fontWeight: "700",
-    color: "#1a1a2e",
+    fontFamily: "OmnesBold",
+    color: "#0c4aad",
   },
   viewAll: {
     fontSize: 13,
-    color: "#2563eb",
+    color: "#0c4aad",
     fontWeight: "600",
+    fontFamily: "OmnesSemiBold",
   },
   badge: {
     backgroundColor: "#f59e0b",
@@ -537,6 +537,7 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 11,
     fontWeight: "700",
+    fontFamily: "OmnesBold",
   },
 
   // Horizontal contact cards
@@ -560,7 +561,7 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: "#1a1a2e",
+    backgroundColor: "#0c4aad",
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 8,
@@ -569,11 +570,13 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontWeight: "700",
+    fontFamily: "OmnesBold",
   },
   contactName: {
     fontSize: 12,
     fontWeight: "600",
-    color: "#1a1a2e",
+    fontFamily: "OmnesSemiBold",
+    color: "#0c4aad",
     textAlign: "center",
     marginBottom: 2,
   },
@@ -605,7 +608,8 @@ const styles = StyleSheet.create({
   listRowName: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#1a1a2e",
+    fontFamily: "OmnesSemiBold",
+    color: "#0c4aad",
     marginBottom: 2,
   },
   listRowSub: {
@@ -616,6 +620,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#d97706",
     fontWeight: "600",
+    fontFamily: "OmnesSemiBold",
   },
   inactiveLabel: {
     fontSize: 12,
@@ -623,43 +628,32 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
 
-  // Scan CTA
-  scanCard: {
+  // Scan CTA — compact strip
+  scanStrip: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#1a1a2e",
-    borderRadius: 14,
+    backgroundColor: "#0c4aad",
+    borderRadius: 10,
     marginHorizontal: 16,
-    marginTop: 4,
+    marginTop: 8,
     marginBottom: 8,
-    padding: 18,
-    shadowColor: "#000",
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
   },
-  scanIcon: {
-    fontSize: 32,
-    marginRight: 14,
+  scanStripIcon: {
+    fontSize: 18,
+    marginRight: 8,
   },
-  scanTextBlock: {
+  scanStripText: {
     flex: 1,
-  },
-  scanTitle: {
-    fontSize: 16,
-    fontWeight: "700",
+    fontSize: 14,
+    fontWeight: "600",
+    fontFamily: "OmnesSemiBold",
     color: "#fff",
-    marginBottom: 4,
   },
-  scanSubtitle: {
-    fontSize: 12,
-    color: "#a0a8c0",
-    lineHeight: 17,
-  },
-  scanArrow: {
-    fontSize: 28,
-    color: "#a0a8c0",
-    marginLeft: 8,
+  scanStripArrow: {
+    fontSize: 20,
+    color: "#a0c4ff",
+    marginLeft: 4,
   },
 });

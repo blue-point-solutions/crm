@@ -10,6 +10,7 @@ import {
   Modal,
   ActivityIndicator,
   Switch,
+  Alert,
 } from "react-native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/types";
@@ -85,7 +86,7 @@ const toggleStyles = StyleSheet.create({
     paddingVertical: 10,
     alignItems: "center",
   },
-  btnActive: { backgroundColor: "#2563eb", borderColor: "#2563eb" },
+  btnActive: { backgroundColor: "#0c4aad", borderColor: "#0c4aad" },
   btnText: { color: "#555", fontWeight: "500", fontSize: 13 },
   btnTextActive: { color: "#fff" },
 });
@@ -215,18 +216,32 @@ export default function CardScannerReviewScreen({ navigation, route }: Props) {
     (draft.firstName.trim().length > 0 || draft.lastName.trim().length > 0);
 
   const handleSave = useCallback(() => {
-    console.log("[CardScannerReview] Saving draft:", JSON.stringify(draft, null, 2));
+    // Filter out empty/sparse entries before saving
+    const cleanDraft = {
+      ...draft,
+      phones: draft.phones.filter((p) => p && p.trim().length > 0),
+      emails: draft.emails.filter((e) => e && e.trim().length > 0),
+    };
+    console.log("[CardScannerReview] Saving draft:", JSON.stringify(cleanDraft, null, 2));
+    // TODO: Replace with real API call when backend (#7, #8) is ready
     navigation.replace("CardScannerConfirm");
   }, [draft, navigation]);
 
   const handleDiscard = useCallback(() => {
-    navigation.goBack();
+    Alert.alert(
+      "Discard Card?",
+      "All extracted information will be lost.",
+      [
+        { text: "Keep Editing", style: "cancel" },
+        { text: "Discard", style: "destructive", onPress: () => navigation.goBack() },
+      ]
+    );
   }, [navigation]);
 
   if (isLoading) {
     return (
       <View style={styles.loadingRoot}>
-        <ActivityIndicator size="large" color="#2563eb" />
+        <ActivityIndicator size="large" color="#0c4aad" />
         <Text style={styles.loadingText}>Analysing card…</Text>
       </View>
     );
@@ -248,10 +263,13 @@ export default function CardScannerReviewScreen({ navigation, route }: Props) {
               This contact may already exist.
             </Text>
             <View style={styles.duplicateActions}>
-              <TouchableOpacity style={styles.duplicateBtn}>
+              <TouchableOpacity
+                style={styles.duplicateBtn}
+                onPress={() => navigation.navigate("Contacts")}
+              >
                 <Text style={styles.duplicateBtnText}>View Existing</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.duplicateBtn}>
+              <TouchableOpacity style={styles.duplicateBtn} onPress={handleSave}>
                 <Text style={styles.duplicateBtnText}>Save as New</Text>
               </TouchableOpacity>
             </View>
@@ -264,7 +282,7 @@ export default function CardScannerReviewScreen({ navigation, route }: Props) {
           <Switch
             value={draft.saveCardImage}
             onValueChange={(v) => update("saveCardImage", v)}
-            trackColor={{ true: "#2563eb" }}
+            trackColor={{ true: "#0c4aad" }}
           />
         </View>
         {!draft.saveCardImage && (
@@ -548,6 +566,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 17,
     fontWeight: "700",
+    fontFamily: "OmnesBold",
     color: "#1a1a1a",
     marginTop: 8,
     marginBottom: 16,
@@ -564,7 +583,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
   },
-  chipActive: { backgroundColor: "#2563eb", borderColor: "#2563eb" },
+  chipActive: { backgroundColor: "#0c4aad", borderColor: "#0c4aad" },
   chipText: { fontSize: 13, color: "#555" },
   chipTextActive: { color: "#fff" },
 
@@ -575,7 +594,7 @@ const styles = StyleSheet.create({
 
   actions: { marginTop: 24, gap: 12 },
   saveButton: {
-    backgroundColor: "#2563eb",
+    backgroundColor: "#0c4aad",
     borderRadius: 10,
     paddingVertical: 16,
     alignItems: "center",
