@@ -14,6 +14,8 @@ uv.lock
 node_modules/
 .expo/
 *.log
+*.apk
+*.aab
 
 # Env / secrets
 .env
