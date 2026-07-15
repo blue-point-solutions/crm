@@ -54,16 +54,19 @@ function TriToggle<T extends string>({
   options,
   value,
   onChange,
+  testIDPrefix,
 }: {
   options: { label: string; value: T }[];
   value: T | null;
   onChange: (v: T) => void;
+  testIDPrefix?: string;
 }) {
   return (
     <View style={toggleStyles.row}>
       {options.map((opt) => (
         <TouchableOpacity
           key={opt.value}
+          testID={testIDPrefix ? `${testIDPrefix}-${opt.value}` : undefined}
           style={[toggleStyles.btn, value === opt.value && toggleStyles.btnActive]}
           onPress={() => onChange(opt.value)}
         >
@@ -431,6 +434,7 @@ export default function CardScannerReviewScreen({ navigation, route }: Props) {
             Marketing Consent <Text style={styles.asterisk}>*</Text>
           </Text>
           <TriToggle<MarketingConsent>
+            testIDPrefix="marketing-consent"
             options={[
               { label: "Yes", value: "Yes" },
               { label: "No", value: "No" },
@@ -445,6 +449,7 @@ export default function CardScannerReviewScreen({ navigation, route }: Props) {
         <View style={fieldStyles.wrapper}>
           <Text style={fieldStyles.label}>Decision Maker</Text>
           <TriToggle<DecisionMaker>
+            testIDPrefix="decision-maker"
             options={[
               { label: "Yes", value: "Yes" },
               { label: "No", value: "No" },

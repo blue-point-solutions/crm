@@ -17,6 +17,11 @@ node_modules/
 *.apk
 *.aab
 
+# Playwright e2e artifacts
+dist-e2e/
+playwright-report/
+test-results/
+
 # Env / secrets
 .env
 .env.*

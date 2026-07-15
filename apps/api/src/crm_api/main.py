@@ -43,6 +43,17 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(title=settings.service_name, lifespan=_lifespan)
     app.state.settings = settings
 
+    # CORS so the mobile app's RN-Web build can call the API cross-origin.
+    from fastapi.middleware.cors import CORSMiddleware
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_origin_list,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
     @app.get("/health")
     def health() -> dict[str, str]:
         return {"status": "ok", "service": settings.service_name}
