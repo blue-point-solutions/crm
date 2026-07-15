@@ -10,6 +10,7 @@
     "expo": "~56.0.12",
     "expo-camera": "~56.0.8",
     "expo-haptics": "~56.0.3",
+    "expo-image-manipulator": "~56.0.19",
     "expo-image-picker": "~56.0.18",
     "expo-local-authentication": "~56.0.4",
     "expo-secure-store": "~56.0.4",
