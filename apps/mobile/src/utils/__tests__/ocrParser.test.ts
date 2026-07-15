@@ -83,4 +83,36 @@ describe("parseCardText", () => {
     expect(result.firstName?.value).toBe("Jane");
     expect(result.emails[0].value).toBe("jane@acme.com");
   });
+
+  it("splits a title+company line merged into one block by the OCR engine", () => {
+    // Real finding from on-device (ML Kit) testing: adjacent card lines with
+    // small vertical spacing get recognized as a single text block.
+    const result = parseCardText([
+      "Marcus Chen",
+      "Director of Operations Meridian Logistics Group",
+      "+1 415-555-2891",
+      "marcus.chen@meridianlogistics.com",
+      "www.meridianlogistics.com",
+      "2200 Harbor Blvd, Suite 400, Oakland, CA 94607",
+      "linkedin.com/in/marcuschen",
+    ]);
+    expect(result.firstName?.value).toBe("Marcus");
+    expect(result.lastName?.value).toBe("Chen");
+    expect(result.jobTitle?.value).toBe("Director of Operations");
+    expect(result.company?.value).toBe("Meridian Logistics Group");
+    expect(result.phones[0].value).toBe("+1 415-555-2891");
+    expect(result.emails[0].value).toBe("marcus.chen@meridianlogistics.com");
+  });
+
+  it("extracts both fields when an email and a website are merged onto one OCR line", () => {
+    // Real finding from on-device testing: the first version of the
+    // per-line loop stopped at the first pattern match (email) and silently
+    // discarded the rest of the line, so the website was lost entirely.
+    const result = parseCardText([
+      "Marcus Chen",
+      "marcus.chen@meridianlogistics.com www.meridianlogistics.com",
+    ]);
+    expect(result.emails[0].value).toBe("marcus.chen@meridianlogistics.com");
+    expect(result.website?.value).toBe("www.meridianlogistics.com");
+  });
 });
