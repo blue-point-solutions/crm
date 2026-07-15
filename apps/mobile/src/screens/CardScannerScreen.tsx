@@ -86,8 +86,8 @@ export default function CardScannerScreen({ onCapture, onCancel, navigation }: P
       if (onCapture) {
         onCapture(result.uri);
       } else if (navigation) {
-        // Navigation-based usage: pop back and surface the URI via route params
-        navigation.goBack();
+        // Navigate to review screen with the captured image URI
+        navigation.navigate("CardScannerReview", { imageUri: result.uri });
       }
     },
     [onCapture, navigation]
