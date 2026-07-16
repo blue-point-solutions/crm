@@ -116,7 +116,11 @@ export default function CardScannerScreen({ onCapture, onCancel, navigation }: P
       const photo = await cameraRef.current.takePictureAsync({ quality: 0.92, shutterSound: false });
       if (!photo) return;
 
-      shutterPlayer.seekTo(0);
+      // seekTo() is async (returns a Promise) -- calling play() right after
+      // without awaiting it raced the seek and play against each other, and
+      // real-device testing found this reliably produced no audible sound
+      // at all despite isLoaded being true and no errors logged.
+      await shutterPlayer.seekTo(0);
       shutterPlayer.play();
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
