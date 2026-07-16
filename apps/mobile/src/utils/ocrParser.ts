@@ -16,7 +16,14 @@ import { OcrField, OcrResult } from "../types/contact";
  * something.
  */
 
-const EMAIL_RE = /[\w.+-]+@[\w-]+\.[a-z]{2,}/i;
+// Tolerates a single stray space inside the domain (`\s?` after the first
+// domain segment) -- real-device testing found ML Kit twice recognizing
+// "gmail.com" with a phantom space as "g mail.com", which broke a strict
+// no-space pattern and left the entire email (and the whole line it was on)
+// unrecognized. The matched text still needs the space stripped back out
+// before being stored (done at the call site) since a real email can't
+// contain one.
+const EMAIL_RE = /[\w.+-]+@[\w-]+\s?[\w-]*\.[a-z]{2,}/i;
 // {6,} (not {7,}) so an 8-digit PH landline number (e.g. "83652803", no
 // separators) still matches -- real-device testing found one falling
 // exactly one character short of the old, stricter minimum and being left
@@ -128,7 +135,7 @@ export function parseCardText(rawLines: string[]): OcrResult {
 
     const emailMatch = remainder.match(EMAIL_RE);
     if (emailMatch) {
-      result.emails.push(field(emailMatch[0], 0.92));
+      result.emails.push(field(emailMatch[0].replace(/\s+/g, ""), 0.92));
       cut(emailMatch);
     }
 

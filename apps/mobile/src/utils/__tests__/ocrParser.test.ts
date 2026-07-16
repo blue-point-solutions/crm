@@ -180,4 +180,15 @@ describe("parseCardText", () => {
       expect.arrayContaining([expect.stringContaining("0905-254-8263"), expect.stringContaining("0947-731-9516")])
     );
   });
+
+  it("recognizes an email even when ML Kit inserts a stray space inside the domain", () => {
+    // Real finding: rescanning the same card a third time, ML Kit read
+    // "gmail.com" as "g mail.com" -- a phantom space breaking a strict
+    // no-space email pattern entirely, which left the whole line (a
+    // Telefax/Email block) unclaimed and it got mistaken for the contact's
+    // name. The stray space must also not end up in the stored value.
+    const result = parseCardText(["Mark Test", "Email:fecalonzo0425@g mail.com"]);
+    expect(result.emails[0]?.value).toBe("fecalonzo0425@gmail.com");
+    expect(result.firstName?.value).toBe("Mark");
+  });
 });
