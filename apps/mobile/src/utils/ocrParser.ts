@@ -179,12 +179,17 @@ export function parseCardText(rawLines: string[]): OcrResult {
     // "Email") survive in the leftover text -- a single "is the whole
     // leftover just one label" check missed this, since it's two labels
     // plus punctuation, not one. Strip every occurrence of a known label
-    // word, then punctuation/whitespace; if nothing is left, the line
-    // contributed no independent content of its own.
+    // word, then ALL punctuation/symbol characters (Unicode \p{P}/\p{S},
+    // not an enumerated list) -- real-device testing also found ML Kit
+    // isn't perfectly deterministic between scans of the same physical
+    // card: the separator between two phone numbers came back as "/" once
+    // and "|" on a later rescan. Enumerating specific punctuation chars
+    // chases whichever one happened to show up in the last test; stripping
+    // the whole Unicode punctuation/symbol category doesn't.
     if (consumed) {
       const leftoverStripped = remainder
         .replace(/\b(tel|telefax|fax|mobile|cell|phone|email|e-?mail|no|number)\b/gi, "")
-        .replace(/[.,;:#/\-–\s]/g, "");
+        .replace(/[\p{P}\p{S}\s]/gu, "");
       if (leftoverStripped.length === 0) {
         claimed.add(i);
       }

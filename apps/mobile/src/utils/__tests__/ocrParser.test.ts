@@ -156,4 +156,18 @@ describe("parseCardText", () => {
     expect(result.address?.value).toContain("Gilmore Ave");
     expect(result.address?.value).not.toContain("Mobile no");
   });
+
+  it("is robust to which punctuation character ML Kit uses as a separator between two numbers on the same line", () => {
+    // Real finding: rescanning the exact same physical card came back with
+    // "|" as the separator between two phone numbers instead of "/" seen on
+    // an earlier scan -- ML Kit isn't perfectly deterministic between scans.
+    // An earlier fix only stripped "/" specifically from the leftover label
+    // text, so it broke again the moment a different separator showed up.
+    const result = parseCardText(["Mark Test", "Mobile no: 0905-254-8263 | 0947-731-9516"]);
+    expect(result.firstName?.value).toBe("Mark");
+    expect(result.lastName?.value).toBe("Test");
+    expect(result.phones.map((p) => p.value)).toEqual(
+      expect.arrayContaining([expect.stringContaining("0905-254-8263"), expect.stringContaining("0947-731-9516")])
+    );
+  });
 });
