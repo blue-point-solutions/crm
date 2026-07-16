@@ -223,16 +223,45 @@ export function parseCardText(rawLines: string[]): OcrResult {
     remaining = remaining.filter(({ i }) => i !== companyBySuffix.i);
   }
 
-  const nameEntry = remaining[0];
-  if (nameEntry) {
-    const parts = nameEntry.line.split(/\s+/);
-    if (parts.length >= 2) {
-      result.firstName = field(parts[0], 0.55);
-      result.lastName = field(parts.slice(1).join(" "), 0.55);
-    } else if (parts.length === 1) {
-      result.firstName = field(parts[0], 0.4);
+  // "Name | Title" (e.g. "INA JALOSJOS | GENERAL MANAGER") is an explicit,
+  // unambiguous signal for both fields at once -- far stronger than the
+  // generic "first line = name" / "first title-keyword line = title"
+  // guesses below. Real-device finding: on a promotional/flyer-style card
+  // with a marketing tagline and service-type banner competing for the
+  // "first line" and "contains a title keyword" slots, the generic
+  // positional logic grabbed those instead and never reached the actual
+  // pipe-delimited name+title further down the card. Prioritize this
+  // pattern before falling back to positional guessing.
+  const NAME_TITLE_PIPE_RE = /^([A-Za-z][A-Za-z.\-']*(?:\s+[A-Za-z][A-Za-z.\-']*){0,3})\s*\|\s*(.+)$/;
+  const namePipeEntry = remaining.find(({ i, line }) => {
+    if (claimed.has(i)) return false;
+    const m = line.match(NAME_TITLE_PIPE_RE);
+    return !!m && !COMPANY_SUFFIX_WORD_RE.test(m[1]);
+  });
+  if (namePipeEntry) {
+    const m = namePipeEntry.line.match(NAME_TITLE_PIPE_RE)!;
+    const nameParts = m[1].trim().split(/\s+/);
+    result.firstName = field(nameParts[0], 0.7);
+    if (nameParts.length > 1) {
+      result.lastName = field(nameParts.slice(1).join(" "), 0.7);
     }
-    claimed.add(nameEntry.i);
+    result.jobTitle = field(m[2].trim(), 0.7);
+    claimed.add(namePipeEntry.i);
+    remaining = remaining.filter(({ i }) => i !== namePipeEntry.i);
+  }
+
+  if (!result.firstName) {
+    const nameEntry = remaining[0];
+    if (nameEntry) {
+      const parts = nameEntry.line.split(/\s+/);
+      if (parts.length >= 2) {
+        result.firstName = field(parts[0], 0.55);
+        result.lastName = field(parts.slice(1).join(" "), 0.55);
+      } else if (parts.length === 1) {
+        result.firstName = field(parts[0], 0.4);
+      }
+      claimed.add(nameEntry.i);
+    }
   }
 
   // Real job titles on a card are short (1-4 words: "Sales Manager",
@@ -242,16 +271,27 @@ export function parseCardText(rawLines: string[]): OcrResult {
   // person's title at all -- length-gate the match so a long descriptive
   // sentence doesn't get mistaken for a short title just because one word
   // in it happens to match.
-  const titleEntry = remaining.find(
-    ({ i, line }) => !claimed.has(i) && TITLE_HINT_RE.test(line) && line.split(/\s+/).length <= 4
-  );
-  if (titleEntry) {
-    result.jobTitle = field(titleEntry.line, 0.6);
-    claimed.add(titleEntry.i);
+  if (!result.jobTitle) {
+    const titleEntry = remaining.find(
+      ({ i, line }) => !claimed.has(i) && TITLE_HINT_RE.test(line) && line.split(/\s+/).length <= 4
+    );
+    if (titleEntry) {
+      result.jobTitle = field(titleEntry.line, 0.6);
+      claimed.add(titleEntry.i);
+    }
   }
 
+  // Same length-gate reasoning as job title: a company name is short.
+  // Real-device finding: on a promotional card, a full marketing sentence
+  // ("Don't let pests take over your property, call us for top-notch pest
+  // control services today!") was the first remaining unclaimed line and
+  // got assigned as Company -- an unbounded "just take whatever's left"
+  // fallback has no way to prefer a short brand name over a long tagline
+  // sitting earlier in the array.
   if (!result.company) {
-    const companyEntry = remaining.find(({ i }) => !claimed.has(i));
+    const companyEntry = remaining.find(
+      ({ i, line }) => !claimed.has(i) && line.split(/\s+/).length <= 6
+    );
     if (companyEntry) {
       result.company = field(companyEntry.line, 0.5);
       claimed.add(companyEntry.i);

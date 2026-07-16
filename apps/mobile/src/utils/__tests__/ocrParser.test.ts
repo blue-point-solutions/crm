@@ -191,4 +191,32 @@ describe("parseCardText", () => {
     expect(result.emails[0]?.value).toBe("fecalonzo0425@gmail.com");
     expect(result.firstName?.value).toBe("Mark");
   });
+
+  it("prioritizes an explicit 'Name | Title' pattern over a generic positional guess", () => {
+    // Exact raw output captured scanning a real promotional/flyer-style
+    // card ("Mr. Butler" pest control). The brand logo OCR'd as garbage
+    // ("MBUtLER"), the service-type banner ("PEST CONTROL SPECIALIST")
+    // contains a title keyword ("specialist") and looked like a title, and
+    // a marketing sentence was the next short-ish remaining line -- all
+    // competing with the real "Name | Title" pair further down the card.
+    // Without prioritizing the pipe pattern, the name/title guesses were
+    // both wrong and the real contact (Ina Jalosjos, General Manager) was
+    // never recognized as either.
+    const result = parseCardText([
+      "MBUtLER",
+      "PEST CONTROL SPECIALIST",
+      "Don't let pests take over your property, call us\nfor top-notch pest control services today!",
+      "TYPES OF PESTS WE DEAL WITH:",
+      "Termites Cockroaches Ants Mosquitoes Flies\nINA JALOSJOS | GENERAL MANAGER",
+      "CONTACT US",
+      "09267419295",
+      "info @mrbutler.com.ph",
+    ]);
+    expect(result.firstName?.value).toBe("INA");
+    expect(result.lastName?.value).toBe("JALOSJOS");
+    expect(result.jobTitle?.value).toBe("GENERAL MANAGER");
+    // Company should not be the marketing sentence -- it's too long to be
+    // a plausible company name (the length-gate fallback should skip it).
+    expect(result.company?.value).not.toContain("Don't let pests");
+  });
 });
