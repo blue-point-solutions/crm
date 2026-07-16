@@ -23,6 +23,24 @@ const FACEBOOK_RE = /(facebook\.com|fb\.com)\/\S+/i;
 const GENERIC_URL_RE = /((https?:\/\/)?(www\.)?[a-z0-9-]+\.[a-z]{2,}(\/\S*)?)/i;
 const ADDRESS_HINT_RE =
   /\d+.{0,40}\b(st|street|ave|avenue|rd|road|blvd|boulevard|suite|ste|dr|drive|lane|ln)\b/i;
+// Real-device testing against a real Philippine business card showed the
+// street-suffix check above misses most PH addresses entirely -- they're
+// typically "<number> <barangay/subdivision>, <city>, <province/country>"
+// with no "St"/"Ave"/"Blvd"-style keyword. Two more general, non-US-centric
+// fallback signals: (a) starts with a building/house number and has 2+
+// comma/period-separated segments (the structural shape of an address
+// regardless of language), or (b) starts with a number and names a
+// country/region explicitly on the card.
+const ADDRESS_STRUCTURE_RE = /^\d+\s+\S.*[,.].*[,.]/;
+const ADDRESS_COUNTRY_HINT_RE = /\b(philippines|metro manila)\b/i;
+
+function looksLikeAddress(line: string): boolean {
+  return (
+    ADDRESS_HINT_RE.test(line) ||
+    ADDRESS_STRUCTURE_RE.test(line) ||
+    (/^\d+\s/.test(line) && ADDRESS_COUNTRY_HINT_RE.test(line))
+  );
+}
 const TITLE_HINT_RE =
   /\b(manager|director|president|ceo|cto|cfo|coo|vp|vice president|engineer|founder|owner|consultant|specialist|lead|head|officer|analyst|coordinator|executive|representative|sales|marketing)\b/i;
 // Real-device testing (not the mock, not the web fallback) showed ML Kit
@@ -116,7 +134,7 @@ export function parseCardText(rawLines: string[]): OcrResult {
     // (and consumes) whatever text is left rather than being cut out of it,
     // since street/suite/zip text isn't a clean regex-extractable token the
     // way an email or phone is.
-    if (ADDRESS_HINT_RE.test(remainder)) {
+    if (looksLikeAddress(remainder)) {
       if (!result.address) {
         result.address = field(remainder, 0.75);
         consumed = true;

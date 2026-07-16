@@ -41,7 +41,7 @@ type Props = Partial<CardScannerScreenProps> & Partial<NavigationProps>;
 
 export default function CardScannerScreen({ onCapture, onCancel, navigation }: Props) {
   const cameraRef = useRef<CameraView>(null);
-  const { width: screenWidth } = useWindowDimensions();
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
 
   // Camera state
   const [isCameraReady, setIsCameraReady] = useState(false);
@@ -58,21 +58,39 @@ export default function CardScannerScreen({ onCapture, onCancel, navigation }: P
   // Auto-capture
   // ---------------------------------------------------------------------------
 
+  // Longest edge to resize to after cropping, before handing off to OCR.
+  // Real-device testing found the old fixed 856x540 *squish* (no crop, plus a
+  // portrait->landscape aspect distortion) left card text only a few pixels
+  // tall once the card was a small fraction of a full-frame photo -- nowhere
+  // near enough resolution for ML Kit to read reliably. 1600px keeps text
+  // legible while still being far smaller than a raw 12MP capture.
+  const OCR_TARGET_LONG_EDGE = 1600;
+
   const handleCapture = useCallback(
-    async (uri: string) => {
-      // TODO: Real perspective correction requires OpenCV or an ML-based
-      // homography transform. expo-image-manipulator only supports affine ops
-      // (crop/resize/rotate/flip). Replace this stub with a native module once
-      // available.
-      const result = await ImageManipulator.manipulateAsync(
-        uri,
-        [
-          // Crop a centred region proportional to the standard card ratio then
-          // resize to a canonical 856×540 px for consistent downstream handling.
-          { resize: { width: 856, height: 540 } },
-        ],
-        { compress: 0.92, format: ImageManipulator.SaveFormat.JPEG }
-      );
+    async (uri: string, cropRegion?: { originX: number; originY: number; width: number; height: number }) => {
+      // TODO: Real perspective correction (for an angled/skewed photo of the
+      // card) requires OpenCV or an ML-based homography transform --
+      // expo-image-manipulator only supports affine ops (crop/resize/rotate/
+      // flip), so this only does a straight rectangular crop to the on-screen
+      // guide box, not true corner-to-corner correction.
+      const actions: ImageManipulator.Action[] = [];
+      if (cropRegion) {
+        actions.push({ crop: cropRegion });
+      }
+      const cropWidth = cropRegion?.width;
+      if (cropWidth) {
+        actions.push({ resize: { width: Math.min(cropWidth, OCR_TARGET_LONG_EDGE) } });
+      } else {
+        // Gallery-imported images have no known guide-box region to crop to
+        // (the user picked an arbitrary photo) -- just cap the long edge,
+        // preserving aspect ratio rather than forcing a fixed distorted size.
+        actions.push({ resize: { width: OCR_TARGET_LONG_EDGE } });
+      }
+
+      const result = await ImageManipulator.manipulateAsync(uri, actions, {
+        compress: 0.92,
+        format: ImageManipulator.SaveFormat.JPEG,
+      });
 
       if (onCapture) {
         onCapture(result.uri);
@@ -97,13 +115,27 @@ export default function CardScannerScreen({ onCapture, onCancel, navigation }: P
       // Brief "Processing…" freeze (500 ms) before calling back
       await new Promise<void>((resolve) => setTimeout(resolve, 500));
 
-      await handleCapture(photo.uri);
+      // Map the on-screen guide box (85% of screen width, vertically centred,
+      // 3.5:2 card aspect ratio) onto the actual captured photo's pixel
+      // dimensions -- the preview fills the screen 1:1 with what's captured,
+      // so the crop region is the same fraction of the photo as the box is
+      // of the screen.
+      const cropWidthFrac = boxWidth / screenWidth;
+      const cropHeightFrac = boxHeight / screenHeight;
+      const cropRegion = {
+        width: Math.round(photo.width * cropWidthFrac),
+        height: Math.round(photo.height * cropHeightFrac),
+        originX: Math.round((photo.width - photo.width * cropWidthFrac) / 2),
+        originY: Math.round((photo.height - photo.height * cropHeightFrac) / 2),
+      };
+
+      await handleCapture(photo.uri, cropRegion);
     } catch (err) {
       console.warn("[CardScanner] captureCard error:", err);
     } finally {
       setIsProcessing(false);
     }
-  }, [isProcessing, handleCapture]);
+  }, [isProcessing, handleCapture, boxWidth, boxHeight, screenWidth, screenHeight]);
 
   // No auto-capture — user presses the shutter button to capture.
 

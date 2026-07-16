@@ -115,4 +115,19 @@ describe("parseCardText", () => {
     expect(result.emails[0].value).toBe("marcus.chen@meridianlogistics.com");
     expect(result.website?.value).toBe("www.meridianlogistics.com");
   });
+
+  it("recognizes a Philippine-style address with no US street-suffix keyword", () => {
+    // Real finding from scanning an actual physical PH business card: the
+    // old ADDRESS_HINT_RE only matched US-style suffixes (St/Ave/Blvd/etc),
+    // so this fell through to the positional company-name guess instead --
+    // wrongly overwriting Company while leaving Address empty.
+    const result = parseCardText([
+      "Mark Ignacio",
+      "Chief Executive Officer",
+      "17 Dona Rita Digz, Parnaque. Manila Philippines",
+      "PHILinspect",
+    ]);
+    expect(result.address?.value).toContain("Dona Rita Digz");
+    expect(result.company?.value).toBe("PHILinspect");
+  });
 });
