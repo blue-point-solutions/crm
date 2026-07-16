@@ -17,7 +17,11 @@ import { OcrField, OcrResult } from "../types/contact";
  */
 
 const EMAIL_RE = /[\w.+-]+@[\w-]+\.[a-z]{2,}/i;
-const PHONE_RE = /(\+?\d[\d\-.\s()]{7,}\d)/;
+// {6,} (not {7,}) so an 8-digit PH landline number (e.g. "83652803", no
+// separators) still matches -- real-device testing found one falling
+// exactly one character short of the old, stricter minimum and being left
+// as unclaimed leftover text instead of a phone number.
+const PHONE_RE = /(\+?\d[\d\-.\s()]{6,}\d)/;
 const LINKEDIN_RE = /linkedin\.com\/\S+/i;
 const FACEBOOK_RE = /(facebook\.com|fb\.com)\/\S+/i;
 const GENERIC_URL_RE = /((https?:\/\/)?(www\.)?[a-z0-9-]+\.[a-z]{2,}(\/\S*)?)/i;
@@ -60,7 +64,7 @@ const TITLE_HINT_RE =
 const TITLE_PHRASE_RE =
   /\b(manager|director|president|ceo|cto|cfo|coo|vp|vice president|engineer|founder|owner|consultant|specialist|lead|head|officer|analyst|coordinator|executive|representative|sales|marketing)\b(?:\s+(?:of|for|and|the)\s+\w+){0,2}/i;
 const COMPANY_SUFFIX_WORD_RE =
-  /\b(Inc|LLC|Corp|Corporation|Group|Solutions|Industries|Technologies|Company|Co|Partners|Associates|Enterprises|Ltd|Logistics|Holdings|Ventures|Consulting|Systems|Global|International)\.?$/;
+  /\b(Inc|LLC|Corp|Corporation|Group|Solutions|Industries|Technologies|Company|Co|Partners|Associates|Enterprises|Ltd|Logistics|Holdings|Ventures|Consulting|Systems|Global|International|Trading)\.?$/i;
 const CAPITALIZED_PHRASE_RE = /^([A-Z][a-zA-Z&]*\s+){1,}[A-Z][a-zA-Z&]*$/;
 
 function field(value: string, confidence: number): OcrField {
@@ -90,7 +94,17 @@ function splitMergedTitleCompanyLines(rawLines: string[]): string[] {
 }
 
 export function parseCardText(rawLines: string[]): OcrResult {
-  const lines = splitMergedTitleCompanyLines(rawLines)
+  // Real-device finding: ML Kit doesn't always return one array entry per
+  // visual line -- a densely-packed card can come back with an entry like
+  // "<address>\n<telefax/email>\n<mobile numbers>", three logical lines
+  // bundled into one string with embedded \n's. Treating that as a single
+  // atomic "line" let one match (e.g. an address-shaped fragment) claim the
+  // whole blob, silently swallowing the phone numbers embedded inside it.
+  // Flatten on \n before anything else so every downstream step sees real,
+  // individual lines.
+  const flatRawLines = rawLines.flatMap((l) => l.split("\n"));
+
+  const lines = splitMergedTitleCompanyLines(flatRawLines)
     .map((l) => l.trim())
     .filter(Boolean);
 
@@ -141,8 +155,12 @@ export function parseCardText(rawLines: string[]): OcrResult {
       }
       remainder = "";
     } else {
-      const phoneMatch = remainder.match(PHONE_RE);
-      if (phoneMatch && result.phones.length < 3) {
+      // Loop, not a single match -- real-device testing found a line like
+      // "Mobile no: 0905-254-8263 /0947-731-9516" with two numbers on it;
+      // a single match+cut left the second number as unclaimed leftover
+      // text that then polluted the name/title/company guessing below.
+      let phoneMatch;
+      while (result.phones.length < 3 && (phoneMatch = remainder.match(PHONE_RE))) {
         result.phones.push(field(phoneMatch[0], 0.8));
         cut(phoneMatch);
       }
@@ -154,22 +172,44 @@ export function parseCardText(rawLines: string[]): OcrResult {
       cut(urlMatch);
     }
 
-    // Only mark the line fully claimed if nothing meaningful is left over --
-    // otherwise its original (unmodified) text stays available below for the
-    // positional name/title/company fallback.
-    if (consumed && remainder.replace(/[.,;:\-\s]/g, "").length === 0) {
-      claimed.add(i);
+    // Mark the line claimed if nothing meaningful is left over once contact
+    // labels are stripped out too. Real-device testing found lines with
+    // *multiple* labels ("Telefax #: <number>- Email:<address>") where each
+    // value gets correctly extracted but both label words ("Telefax",
+    // "Email") survive in the leftover text -- a single "is the whole
+    // leftover just one label" check missed this, since it's two labels
+    // plus punctuation, not one. Strip every occurrence of a known label
+    // word, then punctuation/whitespace; if nothing is left, the line
+    // contributed no independent content of its own.
+    if (consumed) {
+      const leftoverStripped = remainder
+        .replace(/\b(tel|telefax|fax|mobile|cell|phone|email|e-?mail|no|number)\b/gi, "")
+        .replace(/[.,;:#/\-–\s]/g, "");
+      if (leftoverStripped.length === 0) {
+        claimed.add(i);
+      }
     }
   });
 
   // Remaining unclaimed lines, in order, are the best guesses for
   // name / title / company -- lower confidence since it's positional, not
-  // pattern-matched. First unclaimed line is almost always the name on a
-  // business card; a line matching common job-title keywords is the title;
-  // the next remaining line is the company.
-  const remaining = lines
-    .map((line, i) => ({ line, i }))
-    .filter(({ i }) => !claimed.has(i));
+  // pattern-matched. First unclaimed line is *usually* the person's name on
+  // a business card, but real-device testing found a real counter-example:
+  // dealer/reseller cards often lead with the company banner instead (e.g.
+  // "EIGHTSYS TRADING" as line 1, with the actual contact person's name,
+  // "FE CUVIN-ALONZO", appearing further down). So: pre-scan all remaining
+  // lines for an explicit company-entity suffix match first (regardless of
+  // position) and claim it as company before assuming the first line is a
+  // person -- otherwise the company name gets split into fake first/last
+  // name fields, AND the real person's name gets bumped into Company.
+  let remaining = lines.map((line, i) => ({ line, i })).filter(({ i }) => !claimed.has(i));
+
+  const companyBySuffix = remaining.find(({ line }) => COMPANY_SUFFIX_WORD_RE.test(line));
+  if (companyBySuffix) {
+    result.company = field(companyBySuffix.line, 0.55);
+    claimed.add(companyBySuffix.i);
+    remaining = remaining.filter(({ i }) => i !== companyBySuffix.i);
+  }
 
   const nameEntry = remaining[0];
   if (nameEntry) {
@@ -189,10 +229,12 @@ export function parseCardText(rawLines: string[]): OcrResult {
     claimed.add(titleEntry.i);
   }
 
-  const companyEntry = remaining.find(({ i }) => !claimed.has(i));
-  if (companyEntry) {
-    result.company = field(companyEntry.line, 0.5);
-    claimed.add(companyEntry.i);
+  if (!result.company) {
+    const companyEntry = remaining.find(({ i }) => !claimed.has(i));
+    if (companyEntry) {
+      result.company = field(companyEntry.line, 0.5);
+      claimed.add(companyEntry.i);
+    }
   }
 
   return result;

@@ -130,4 +130,30 @@ describe("parseCardText", () => {
     expect(result.address?.value).toContain("Dona Rita Digz");
     expect(result.company?.value).toBe("PHILinspect");
   });
+
+  it("handles a real ML Kit result where one array entry bundles multiple logical lines via embedded newlines", () => {
+    // Exact raw output captured from expo-text-extractor scanning a real,
+    // densely-packed reseller business card. Entry [1] alone bundles the
+    // address, telefax/email, and mobile numbers into one string joined by
+    // \n -- treating it as a single atomic line let the address match
+    // swallow the whole block, discarding the phone numbers entirely. This
+    // card also leads with the company banner ("EIGHTSYS TRADING") instead
+    // of the contact person's name ("FE CUVIN-ALONZO").
+    const result = parseCardText([
+      "EIGHTSYS TRADING",
+      "5th Flr. Gilmore IT Center, Gilmore Ave., Quezon City\nTelefax #: 83652803- Email:fecalonzo0425@gmail.com\nMobile no: 0905-254-8263 /0947-731-9516",
+      "FE CUVIN-ALONZO",
+      "POS & BIOMETRICS PRODUCTS\nComputer Parts, Sales and Services",
+    ]);
+
+    expect(result.company?.value).toBe("EIGHTSYS TRADING");
+    expect(result.firstName?.value).toBe("FE");
+    expect(result.lastName?.value).toBe("CUVIN-ALONZO");
+    expect(result.emails[0].value).toBe("fecalonzo0425@gmail.com");
+    expect(result.phones.map((p) => p.value)).toEqual(
+      expect.arrayContaining([expect.stringContaining("0905-254-8263"), expect.stringContaining("0947-731-9516")])
+    );
+    expect(result.address?.value).toContain("Gilmore Ave");
+    expect(result.address?.value).not.toContain("Mobile no");
+  });
 });
