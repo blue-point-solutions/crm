@@ -155,6 +155,16 @@ describe("parseCardText", () => {
     );
     expect(result.address?.value).toContain("Gilmore Ave");
     expect(result.address?.value).not.toContain("Mobile no");
+    // "Computer Parts, Sales and Services" is the business's tagline, not a
+    // personal job title -- it only contains "Sales" coincidentally. Real
+    // job titles are short (<=4 words); this is 5, so it should be left
+    // unclaimed rather than wrongly assigned as jobTitle.
+    expect(result.jobTitle).toBeUndefined();
+  });
+
+  it("doesn't mistake a long business-description sentence for a short job title just because one word matches", () => {
+    const result = parseCardText(["Jane Doe", "Computer Parts, Sales and Services"]);
+    expect(result.jobTitle).toBeUndefined();
   });
 
   it("is robust to which punctuation character ML Kit uses as a separator between two numbers on the same line", () => {

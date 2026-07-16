@@ -228,7 +228,16 @@ export function parseCardText(rawLines: string[]): OcrResult {
     claimed.add(nameEntry.i);
   }
 
-  const titleEntry = remaining.find(({ i, line }) => !claimed.has(i) && TITLE_HINT_RE.test(line));
+  // Real job titles on a card are short (1-4 words: "Sales Manager",
+  // "VP of Sales", "Director of Operations"). Real-device finding: a
+  // business tagline like "Computer Parts, Sales and Services" also
+  // contains a title keyword ("Sales") purely by coincidence and isn't a
+  // person's title at all -- length-gate the match so a long descriptive
+  // sentence doesn't get mistaken for a short title just because one word
+  // in it happens to match.
+  const titleEntry = remaining.find(
+    ({ i, line }) => !claimed.has(i) && TITLE_HINT_RE.test(line) && line.split(/\s+/).length <= 4
+  );
   if (titleEntry) {
     result.jobTitle = field(titleEntry.line, 0.6);
     claimed.add(titleEntry.i);
