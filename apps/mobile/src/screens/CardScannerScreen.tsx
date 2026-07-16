@@ -11,6 +11,7 @@ import { CameraView, CameraType, FlashMode } from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
 import * as Haptics from "expo-haptics";
 import * as ImageManipulator from "expo-image-manipulator";
+import { useAudioPlayer } from "expo-audio";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/types";
 import { requestPhotoLibraryPermission } from "../utils/permissions";
@@ -42,6 +43,11 @@ type Props = Partial<CardScannerScreenProps> & Partial<NavigationProps>;
 export default function CardScannerScreen({ onCapture, onCancel, navigation }: Props) {
   const cameraRef = useRef<CameraView>(null);
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  // Custom, quieter capture sound -- takePictureAsync's shutterSound is set
+  // to false below to disable the loud native OS shutter, replaced with
+  // this. The asset existed unused in the repo before this fix (orphaned,
+  // never wired into any capture flow).
+  const shutterPlayer = useAudioPlayer(require("../../assets/shutter-click.wav"));
 
   // Camera state
   const [isCameraReady, setIsCameraReady] = useState(false);
@@ -107,9 +113,11 @@ export default function CardScannerScreen({ onCapture, onCancel, navigation }: P
 
     setIsProcessing(true);
     try {
-      const photo = await cameraRef.current.takePictureAsync({ quality: 0.92 });
+      const photo = await cameraRef.current.takePictureAsync({ quality: 0.92, shutterSound: false });
       if (!photo) return;
 
+      shutterPlayer.seekTo(0);
+      shutterPlayer.play();
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
       // Brief "Processing…" freeze (500 ms) before calling back
@@ -135,7 +143,7 @@ export default function CardScannerScreen({ onCapture, onCancel, navigation }: P
     } finally {
       setIsProcessing(false);
     }
-  }, [isProcessing, handleCapture, boxWidth, boxHeight, screenWidth, screenHeight]);
+  }, [isProcessing, handleCapture, boxWidth, boxHeight, screenWidth, screenHeight, shutterPlayer]);
 
   // No auto-capture — user presses the shutter button to capture.
 

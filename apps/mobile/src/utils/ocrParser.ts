@@ -16,14 +16,16 @@ import { OcrField, OcrResult } from "../types/contact";
  * something.
  */
 
-// Tolerates a single stray space inside the domain (`\s?` after the first
-// domain segment) -- real-device testing found ML Kit twice recognizing
-// "gmail.com" with a phantom space as "g mail.com", which broke a strict
-// no-space pattern and left the entire email (and the whole line it was on)
-// unrecognized. The matched text still needs the space stripped back out
-// before being stored (done at the call site) since a real email can't
-// contain one.
-const EMAIL_RE = /[\w.+-]+@[\w-]+\s?[\w-]*\.[a-z]{2,}/i;
+// Tolerates a single stray space on either side of "@" -- real-device
+// testing found ML Kit inserting a phantom space after the "@" once
+// ("g mail.com") and before it another time ("info @mrbutler.com.ph"),
+// each breaking a strict no-space pattern and leaving the entire email
+// (and the whole line it was on) unrecognized. The matched text still
+// needs whitespace stripped back out before being stored (done at the
+// call site) since a real email address can't contain any. The TLD group
+// repeats so a compound domain (".com.ph", ".co.uk") isn't truncated to
+// just its first segment (also a real-device finding, same card).
+const EMAIL_RE = /[\w.+-]+\s?@\s?[\w-]+\s?[\w-]*(?:\.[a-z]{2,}){1,}/i;
 // {6,} (not {7,}) so an 8-digit PH landline number (e.g. "83652803", no
 // separators) still matches -- real-device testing found one falling
 // exactly one character short of the old, stricter minimum and being left

@@ -218,5 +218,19 @@ describe("parseCardText", () => {
     // Company should not be the marketing sentence -- it's too long to be
     // a plausible company name (the length-gate fallback should skip it).
     expect(result.company?.value).not.toContain("Don't let pests");
+    expect(result.company?.value).toBe("MBUtLER");
+    expect(result.emails[0]?.value).toBe("info@mrbutler.com.ph");
+    expect(result.phones[0]?.value).toBe("09267419295");
+  });
+
+  it("recognizes an email with a stray space before '@' and a compound TLD", () => {
+    // Real finding, same card, same rescan: ML Kit read the email as
+    // "info @mrbutler.com.ph" -- a phantom space *before* "@" this time
+    // (a different failure mode than the earlier "g mail.com" case, which
+    // had the space after "@"). Also: the domain has a compound TLD
+    // (.com.ph), which an earlier version of EMAIL_RE truncated to just
+    // ".com" since it only matched one dot-segment for the TLD.
+    const result = parseCardText(["Jane Doe", "info @mrbutler.com.ph"]);
+    expect(result.emails[0]?.value).toBe("info@mrbutler.com.ph");
   });
 });
