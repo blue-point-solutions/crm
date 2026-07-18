@@ -30,8 +30,11 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
         # platform-core owns users/sessions/oauth migrations (idempotent).
         from platform_core.db import _ensure_pool, run_migrations
 
+        from crm_api.auth import ensure_profile_table
+
         run_migrations(db_url)
-        await _ensure_pool()
+        pool = await _ensure_pool()
+        await ensure_profile_table(pool)
     yield
 
 
@@ -40,11 +43,37 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app = FastAPI(title=settings.service_name, lifespan=_lifespan)
     app.state.settings = settings
 
+    # CORS so the mobile app's RN-Web build can call the API cross-origin.
+    from fastapi.middleware.cors import CORSMiddleware
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_origin_list,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
     @app.get("/health")
     def health() -> dict[str, str]:
         return {"status": "ok", "service": settings.service_name}
 
     # --- feature routers register here (auth #7, contacts #8, cards, …) ---
+    from platform_core.auth.router import router as platform_auth_router
+
+    from crm_api.auth import router as crm_auth_router
+
+    # crm_auth_router owns /auth/register, /auth/login, /me (wire contract the
+    # mobile app already expects: {email, password}, not platform-core's
+    # {username, password}). Drop platform-core's own /auth/login so there's
+    # exactly one handler per path; keep its /auth/refresh, /auth/logout,
+    # password-reset, email-verify unchanged — mobile's refresh call already
+    # matches platform-core's {refresh_token} shape.
+    platform_auth_router.routes = [
+        r for r in platform_auth_router.routes if getattr(r, "path", None) != "/auth/login"
+    ]
+    app.include_router(crm_auth_router)
+    app.include_router(platform_auth_router)
 
     return app
 

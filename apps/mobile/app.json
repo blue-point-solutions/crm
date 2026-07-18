@@ -1,0 +1,49 @@
+{
+  "expo": {
+    "name": "BP Connect",
+    "slug": "sidabuel-bp-project",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.bluepointsolutions.crm",
+      "infoPlist": {
+        "NSCameraUsageDescription": "This app uses the camera to scan business cards and documents for OCR processing.",
+        "NSPhotoLibraryUsageDescription": "This app accesses your photo library to import images for OCR processing.",
+        "NSFaceIDUsageDescription": "This app uses Face ID to securely authenticate you."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "package": "com.bluepointsolutions.crm",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-secure-store",
+      "expo-font",
+      "expo-audio"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "ddfb0e61-60ba-4500-b54c-b70591238f0d"
+      }
+    },
+    "owner": "sidabuels-team"
+  }
+}
