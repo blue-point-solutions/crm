@@ -8,6 +8,7 @@ import HomeScreen from "../screens/HomeScreen";
 import CardScannerScreen from "../screens/CardScannerScreen";
 import CameraPermissionScreen from "../screens/CameraPermissionScreen";
 import CardScannerReviewScreen from "../screens/CardScannerReviewScreen";
+import CardScannerContactDetailsScreen from "../screens/CardScannerContactDetailsScreen";
 import CardScannerConfirmScreen from "../screens/CardScannerConfirmScreen";
 import ContactsScreen from "../screens/ContactsScreen";
 import ContactDetailScreen from "../screens/ContactDetailScreen";
@@ -31,6 +32,7 @@ export default function RootNavigator() {
         <Stack.Screen name="CardScanner" component={CardScannerScreen} />
         <Stack.Screen name="CameraPermission" component={CameraPermissionScreen} />
         <Stack.Screen name="CardScannerReview" component={CardScannerReviewScreen} />
+        <Stack.Screen name="CardScannerContactDetails" component={CardScannerContactDetailsScreen} />
         <Stack.Screen name="CardScannerConfirm" component={CardScannerConfirmScreen} />
         <Stack.Screen name="ContactDetail" component={ContactDetailScreen} />
         <Stack.Screen name="BiometricConsent" component={BiometricConsentScreen} />

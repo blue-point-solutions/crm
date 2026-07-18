@@ -1,0 +1,10 @@
+{
+  "name": "expo-shutter-sound",
+  "version": "1.0.0",
+  "description": "Local module: low-latency shutter-click playback via Android SoundPool, avoiding expo-audio's deep-buffer playback path.",
+  "main": "index.ts",
+  "types": "index.ts",
+  "peerDependencies": {
+    "expo": "*"
+  }
+}
