@@ -5,10 +5,16 @@ import { RootStackParamList } from "../navigation/types";
 
 type Props = NativeStackScreenProps<RootStackParamList, "CardScannerConfirm">;
 
-export default function CardScannerConfirmScreen({ navigation }: Props) {
+export default function CardScannerConfirmScreen({ navigation, route }: Props) {
+  const { contactId } = route.params;
+
   const handleViewContact = useCallback(() => {
-    navigation.navigate("Contacts");
-  }, [navigation]);
+    if (contactId) {
+      navigation.navigate("ContactDetail", { contactId });
+    } else {
+      navigation.navigate("Contacts");
+    }
+  }, [navigation, contactId]);
 
   const handleScanAnother = useCallback(() => {
     navigation.navigate("CameraPermission");

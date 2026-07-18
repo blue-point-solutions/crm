@@ -6,10 +6,13 @@ import {
   TouchableOpacity,
   ScrollView,
   StyleSheet,
+  ActivityIndicator,
+  Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/types";
+import { createLocalContact } from "../api/localContactsStore";
 import {
   ContactDraft,
   ContactSource,
@@ -100,12 +103,25 @@ export default function CardScannerContactDetailsScreen({ navigation, route }: P
     }));
   }, []);
 
-  const canSave = draft.marketingConsent !== null;
+  const [isSaving, setIsSaving] = useState(false);
 
-  const handleSave = useCallback(() => {
-    console.log("[CardScannerContactDetails] Saving draft:", JSON.stringify(draft, null, 2));
-    // TODO: Replace with real API call when backend (#7, #8) is ready
-    navigation.replace("CardScannerConfirm");
+  const canSave = draft.marketingConsent !== null && !isSaving;
+
+  const handleSave = useCallback(async () => {
+    setIsSaving(true);
+    try {
+      // TEMPORARY: local on-device persistence, stand-in for the real
+      // backend (blocked on ticket #8/#3). See api/localContactsStore.ts.
+      // Swap this call for the real createContact() once that API exists --
+      // the try/catch and loading state here are already shaped for it.
+      const saved = await createLocalContact(draft);
+      navigation.replace("CardScannerConfirm", { contactId: saved.id });
+    } catch (err) {
+      console.warn("[CardScannerContactDetails] Save failed:", err);
+      Alert.alert("Couldn't Save Contact", "Something went wrong saving this contact. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
   }, [draft, navigation]);
 
   return (
@@ -244,7 +260,11 @@ export default function CardScannerContactDetailsScreen({ navigation, route }: P
           onPress={handleSave}
           disabled={!canSave}
         >
-          <Text style={styles.saveButtonText}>Save Contact</Text>
+          {isSaving ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.saveButtonText}>Save Contact</Text>
+          )}
         </TouchableOpacity>
       </View>
     </ScrollView>
