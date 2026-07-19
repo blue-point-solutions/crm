@@ -1,6 +1,5 @@
 import React, { useState, useCallback } from "react";
 import {
-  SafeAreaView,
   View,
   Text,
   TextInput,
@@ -10,6 +9,7 @@ import {
   StyleSheet,
   StatusBar,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { RootStackParamList } from "../navigation/types";
@@ -136,6 +136,7 @@ function ContactRow({ item, onPress }: ContactRowProps) {
 
 export default function ContactsScreen() {
   const navigation = useNavigation<ContactsNavProp>();
+  const insets = useSafeAreaInsets();
 
   const [query, setQuery] = useState("");
   const [tempFilter, setTempFilter] = useState<LeadTemp | null>(null);
@@ -184,7 +185,7 @@ export default function ContactsScreen() {
   ];
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBar barStyle="dark-content" />
 
       {/* Header */}
@@ -273,7 +274,7 @@ export default function ContactsScreen() {
       >
         <Text style={styles.fabIcon}>+</Text>
       </TouchableOpacity>
-    </SafeAreaView>
+    </View>
   );
 }
 
