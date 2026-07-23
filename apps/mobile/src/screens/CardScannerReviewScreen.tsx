@@ -8,22 +8,15 @@ import {
   StyleSheet,
   Image,
   Modal,
-  ActivityIndicator,
   Switch,
+  ActivityIndicator,
   Alert,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/types";
 import { parseCardImage } from "../utils/ocr";
-import {
-  OcrResult,
-  ContactDraft,
-  ContactSource,
-  ContactStatus,
-  MarketingConsent,
-  DecisionMaker,
-  LeadTemperature,
-} from "../types/contact";
+import { OcrResult, ContactDraft } from "../types/contact";
 
 type Props = NativeStackScreenProps<RootStackParamList, "CardScannerReview">;
 
@@ -31,68 +24,6 @@ type Props = NativeStackScreenProps<RootStackParamList, "CardScannerReview">;
 const hasDuplicate = true;
 
 const CONFIDENCE_THRESHOLD = 0.7;
-
-const SOURCE_OPTIONS: { label: string; value: ContactSource }[] = [
-  { label: "BNI", value: "BNI" },
-  { label: "Trade Show", value: "TradeShow" },
-  { label: "Referral", value: "Referral" },
-  { label: "Walk-in", value: "WalkIn" },
-  { label: "Online", value: "Online" },
-  { label: "Cold Outreach", value: "ColdOutreach" },
-  { label: "Other", value: "Other" },
-];
-
-const STATUS_OPTIONS: { label: string; value: ContactStatus }[] = [
-  { label: "Lead", value: "Lead" },
-  { label: "Active", value: "Active" },
-  { label: "Inactive", value: "Inactive" },
-];
-
-const TAG_OPTIONS = ["Client", "Prospect", "Partner", "Vendor", "VIP"];
-
-function TriToggle<T extends string>({
-  options,
-  value,
-  onChange,
-  testIDPrefix,
-}: {
-  options: { label: string; value: T }[];
-  value: T | null;
-  onChange: (v: T) => void;
-  testIDPrefix?: string;
-}) {
-  return (
-    <View style={toggleStyles.row}>
-      {options.map((opt) => (
-        <TouchableOpacity
-          key={opt.value}
-          testID={testIDPrefix ? `${testIDPrefix}-${opt.value}` : undefined}
-          style={[toggleStyles.btn, value === opt.value && toggleStyles.btnActive]}
-          onPress={() => onChange(opt.value)}
-        >
-          <Text style={[toggleStyles.btnText, value === opt.value && toggleStyles.btnTextActive]}>
-            {opt.label}
-          </Text>
-        </TouchableOpacity>
-      ))}
-    </View>
-  );
-}
-
-const toggleStyles = StyleSheet.create({
-  row: { flexDirection: "row", gap: 8 },
-  btn: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
-    paddingVertical: 10,
-    alignItems: "center",
-  },
-  btnActive: { backgroundColor: "#0c4aad", borderColor: "#0c4aad" },
-  btnText: { color: "#555", fontWeight: "500", fontSize: 13 },
-  btnTextActive: { color: "#fff" },
-});
 
 function LowConfidenceField({
   label,
@@ -150,6 +81,7 @@ function ocrValue(field?: { value: string }): string {
 
 export default function CardScannerReviewScreen({ navigation, route }: Props) {
   const { imageUri } = route.params;
+  const insets = useSafeAreaInsets();
 
   const [ocr, setOcr] = useState<OcrResult | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -207,27 +139,18 @@ export default function CardScannerReviewScreen({ navigation, route }: Props) {
     setDraft((d) => ({ ...d, [key]: val }));
   }, []);
 
-  const toggleTag = useCallback((tag: string) => {
-    setDraft((d) => ({
-      ...d,
-      tags: d.tags.includes(tag) ? d.tags.filter((t) => t !== tag) : [...d.tags, tag],
-    }));
-  }, []);
+  // Marketing Consent now lives on the next screen (Contact Details), so
+  // this screen only needs a name present before continuing.
+  const canSave = draft.firstName.trim().length > 0 || draft.lastName.trim().length > 0;
 
-  const canSave =
-    draft.marketingConsent !== null &&
-    (draft.firstName.trim().length > 0 || draft.lastName.trim().length > 0);
-
-  const handleSave = useCallback(() => {
-    // Filter out empty/sparse entries before saving
+  const handleContinue = useCallback(() => {
+    // Filter out empty/sparse entries before continuing
     const cleanDraft = {
       ...draft,
       phones: draft.phones.filter((p) => p && p.trim().length > 0),
       emails: draft.emails.filter((e) => e && e.trim().length > 0),
     };
-    console.log("[CardScannerReview] Saving draft:", JSON.stringify(cleanDraft, null, 2));
-    // TODO: Replace with real API call when backend (#7, #8) is ready
-    navigation.replace("CardScannerConfirm");
+    navigation.navigate("CardScannerContactDetails", { draft: cleanDraft });
   }, [draft, navigation]);
 
   const handleDiscard = useCallback(() => {
@@ -252,7 +175,7 @@ export default function CardScannerReviewScreen({ navigation, route }: Props) {
 
   return (
     <>
-      <ScrollView style={styles.root} contentContainerStyle={styles.content}>
+      <ScrollView style={styles.root} contentContainerStyle={[styles.content, { paddingTop: insets.top + 20 }]}>
         {/* Card thumbnail */}
         <TouchableOpacity onPress={() => setImageModalVisible(true)} style={styles.thumbnailWrapper}>
           <Image source={{ uri: imageUri }} style={styles.thumbnail} resizeMode="cover" />
@@ -272,7 +195,7 @@ export default function CardScannerReviewScreen({ navigation, route }: Props) {
               >
                 <Text style={styles.duplicateBtnText}>View Existing</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.duplicateBtn} onPress={handleSave}>
+              <TouchableOpacity style={styles.duplicateBtn} onPress={handleContinue}>
                 <Text style={styles.duplicateBtnText}>Save as New</Text>
               </TouchableOpacity>
             </View>
@@ -367,147 +290,26 @@ export default function CardScannerReviewScreen({ navigation, route }: Props) {
           confidence={ocr?.address?.confidence}
         />
         <LowConfidenceField
-          label="LinkedIn"
+          label="LinkedIn (Optional)"
           value={draft.linkedin}
           onChangeText={(v) => update("linkedin", v)}
           confidence={ocr?.linkedin?.confidence}
         />
         <LowConfidenceField
-          label="Facebook"
+          label="Facebook (Optional)"
           value={draft.facebook}
           onChangeText={(v) => update("facebook", v)}
           confidence={ocr?.facebook?.confidence}
         />
 
-        {/* User-filled section */}
-        <Text style={styles.sectionTitle}>Contact Details</Text>
-
-        {/* Source */}
-        <View style={fieldStyles.wrapper}>
-          <Text style={fieldStyles.label}>Source</Text>
-          <View style={styles.chipRow}>
-            {SOURCE_OPTIONS.map((opt) => (
-              <TouchableOpacity
-                key={opt.value}
-                style={[styles.chip, draft.source === opt.value && styles.chipActive]}
-                onPress={() => update("source", opt.value)}
-              >
-                <Text style={[styles.chipText, draft.source === opt.value && styles.chipTextActive]}>
-                  {opt.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {/* Tags */}
-        <View style={fieldStyles.wrapper}>
-          <Text style={fieldStyles.label}>Tags</Text>
-          <View style={styles.chipRow}>
-            {TAG_OPTIONS.map((tag) => (
-              <TouchableOpacity
-                key={tag}
-                style={[styles.chip, draft.tags.includes(tag) && styles.chipActive]}
-                onPress={() => toggleTag(tag)}
-              >
-                <Text style={[styles.chipText, draft.tags.includes(tag) && styles.chipTextActive]}>
-                  {tag}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {/* Status */}
-        <View style={fieldStyles.wrapper}>
-          <Text style={fieldStyles.label}>Status</Text>
-          <TriToggle<ContactStatus>
-            options={STATUS_OPTIONS}
-            value={draft.status}
-            onChange={(v) => update("status", v)}
-          />
-        </View>
-
-        {/* Marketing Consent — required */}
-        <View style={fieldStyles.wrapper}>
-          <Text style={[fieldStyles.label, styles.required]}>
-            Marketing Consent <Text style={styles.asterisk}>*</Text>
-          </Text>
-          <TriToggle<MarketingConsent>
-            testIDPrefix="marketing-consent"
-            options={[
-              { label: "Yes", value: "Yes" },
-              { label: "No", value: "No" },
-              { label: "Not Asked", value: "NotAsked" },
-            ]}
-            value={draft.marketingConsent}
-            onChange={(v) => update("marketingConsent", v)}
-          />
-        </View>
-
-        {/* Decision Maker */}
-        <View style={fieldStyles.wrapper}>
-          <Text style={fieldStyles.label}>Decision Maker</Text>
-          <TriToggle<DecisionMaker>
-            testIDPrefix="decision-maker"
-            options={[
-              { label: "Yes", value: "Yes" },
-              { label: "No", value: "No" },
-              { label: "Unknown", value: "Unknown" },
-            ]}
-            value={draft.decisionMaker}
-            onChange={(v) => update("decisionMaker", v)}
-          />
-        </View>
-
-        {/* Lead Temperature */}
-        <View style={fieldStyles.wrapper}>
-          <Text style={fieldStyles.label}>Lead Temperature</Text>
-          <TriToggle<LeadTemperature>
-            options={[
-              { label: "Hot", value: "Hot" },
-              { label: "Warm", value: "Warm" },
-              { label: "Cold", value: "Cold" },
-            ]}
-            value={draft.leadTemperature}
-            onChange={(v) => update("leadTemperature", v)}
-          />
-        </View>
-
-        {/* Notes */}
-        <View style={fieldStyles.wrapper}>
-          <Text style={fieldStyles.label}>Notes</Text>
-          <TextInput
-            style={[fieldStyles.input, styles.multiline]}
-            value={draft.notes}
-            onChangeText={(v) => update("notes", v)}
-            placeholder="Add notes…"
-            placeholderTextColor="#aaa"
-            multiline
-            numberOfLines={4}
-          />
-        </View>
-
-        {/* Follow-up Reminder */}
-        <View style={fieldStyles.wrapper}>
-          <Text style={fieldStyles.label}>Follow-up Reminder</Text>
-          <TextInput
-            style={fieldStyles.input}
-            value={draft.followUpDate ?? ""}
-            onChangeText={(v) => update("followUpDate", v || undefined)}
-            placeholder="YYYY-MM-DD"
-            placeholderTextColor="#aaa"
-          />
-        </View>
-
         {/* Bottom actions */}
         <View style={styles.actions}>
           <TouchableOpacity
             style={[styles.saveButton, !canSave && styles.saveButtonDisabled]}
-            onPress={handleSave}
+            onPress={handleContinue}
             disabled={!canSave}
           >
-            <Text style={styles.saveButtonText}>Save Contact</Text>
+            <Text style={styles.saveButtonText}>Next</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.discardButton} onPress={handleDiscard}>
             <Text style={styles.discardButtonText}>Discard</Text>
@@ -579,23 +381,6 @@ const styles = StyleSheet.create({
     borderBottomColor: "#eee",
     paddingBottom: 8,
   },
-
-  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  chip: {
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  chipActive: { backgroundColor: "#0c4aad", borderColor: "#0c4aad" },
-  chipText: { fontSize: 13, color: "#555" },
-  chipTextActive: { color: "#fff" },
-
-  required: {},
-  asterisk: { color: "#e74c3c" },
-
-  multiline: { height: 100, textAlignVertical: "top" },
 
   actions: { marginTop: 24, gap: 12 },
   saveButton: {

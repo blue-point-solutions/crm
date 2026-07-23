@@ -11,7 +11,7 @@ import { CameraView, CameraType, FlashMode } from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
 import * as Haptics from "expo-haptics";
 import * as ImageManipulator from "expo-image-manipulator";
-import { useAudioPlayer } from "expo-audio";
+import { preloadShutterSound, playShutterSound } from "expo-shutter-sound";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/types";
 import { requestPhotoLibraryPermission } from "../utils/permissions";
@@ -45,9 +45,15 @@ export default function CardScannerScreen({ onCapture, onCancel, navigation }: P
   const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   // Custom, quieter capture sound -- takePictureAsync's shutterSound is set
   // to false below to disable the loud native OS shutter, replaced with
-  // this. The asset existed unused in the repo before this fix (orphaned,
-  // never wired into any capture flow).
-  const shutterPlayer = useAudioPlayer(require("../../assets/shutter-click.wav"));
+  // this. Uses the local expo-shutter-sound module (Android SoundPool)
+  // rather than expo-audio: real-device testing found expo-audio's
+  // deep-buffer playback path silently swallowed this ~80ms clip during an
+  // active camera session, even though the player reported successful
+  // playback throughout. SoundPool is Android's purpose-built low-latency
+  // API for short UI sounds and doesn't have that problem.
+  useEffect(() => {
+    preloadShutterSound();
+  }, []);
 
   // Camera state
   const [isCameraReady, setIsCameraReady] = useState(false);
@@ -116,12 +122,7 @@ export default function CardScannerScreen({ onCapture, onCancel, navigation }: P
       const photo = await cameraRef.current.takePictureAsync({ quality: 0.92, shutterSound: false });
       if (!photo) return;
 
-      // seekTo() is async (returns a Promise) -- calling play() right after
-      // without awaiting it raced the seek and play against each other, and
-      // real-device testing found this reliably produced no audible sound
-      // at all despite isLoaded being true and no errors logged.
-      await shutterPlayer.seekTo(0);
-      shutterPlayer.play();
+      playShutterSound();
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
       // Brief "Processing…" freeze (500 ms) before calling back
@@ -147,7 +148,7 @@ export default function CardScannerScreen({ onCapture, onCancel, navigation }: P
     } finally {
       setIsProcessing(false);
     }
-  }, [isProcessing, handleCapture, boxWidth, boxHeight, screenWidth, screenHeight, shutterPlayer]);
+  }, [isProcessing, handleCapture, boxWidth, boxHeight, screenWidth, screenHeight]);
 
   // No auto-capture — user presses the shutter button to capture.
 

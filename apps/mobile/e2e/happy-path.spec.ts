@@ -76,18 +76,13 @@ test("register -> scan -> review -> save happy path", async ({ page }) => {
   const fileChooser = await fileChooserPromise;
   await fileChooser.setFiles(path.join(__dirname, "fixtures", "sample-card.jpg"));
 
-  // --- 3. Review screen: mock OCR loads, fill required field, save --------
+  // --- 3. Review screen (extracted details + card image): mock OCR loads, ---
+  // fill required field, continue. Marketing Consent lives on the next
+  // screen now (Contact Details), not here.
   // "Jane" lands in an <input value>, not text content -- getByDisplayValue,
   // not getByText (an earlier version of this test used getByText and it
   // silently never matched, which is a test-authoring bug, not an app one).
   await expect(page.locator('input[value="Jane"]').last()).toBeVisible({ timeout: 10_000 });
-
-  // "Yes" text is ambiguous (also appears in the Decision Maker toggle) --
-  // an earlier version of this test used getByText("Yes").last() and it
-  // silently answered Decision Maker instead of Marketing Consent. Added a
-  // testID to CardScannerReviewScreen's TriToggle for this (app-code change,
-  // not just a test workaround).
-  await page.getByTestId("marketing-consent-Yes").last().click();
 
   // Client-side duplicate check (matches against locally-seeded demo
   // contacts) may show a "This contact may already exist" banner with its
@@ -97,8 +92,18 @@ test("register -> scan -> review -> save happy path", async ({ page }) => {
   if (await saveAsNew.isVisible().catch(() => false)) {
     await saveAsNew.click();
   } else {
-    await page.getByText("Save Contact").last().click();
+    await page.getByText("Next").last().click();
   }
+
+  // --- 3b. Contact Details screen: Source/Tags/Status/Marketing Consent/etc
+  // are on a separate screen from the extracted-details+image screen above.
+  // "Yes" text is ambiguous (also appears in the Decision Maker toggle) --
+  // an earlier version of this test used getByText("Yes").last() and it
+  // silently answered Decision Maker instead of Marketing Consent. Uses a
+  // testID on CardScannerContactDetailsScreen's TriToggle for this.
+  await expect(page.getByText("Contact Details").last()).toBeVisible({ timeout: 10_000 });
+  await page.getByTestId("marketing-consent-Yes").last().click();
+  await page.getByText("Save Contact").last().click();
 
   // --- 4. Confirm screen ----------------------------------------------------
   await expect(page.getByText("Contact Saved").last()).toBeVisible({ timeout: 10_000 });

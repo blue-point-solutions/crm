@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/types";
 import { ContactListItem } from "../api/contacts";
@@ -231,6 +232,7 @@ type Props = NativeStackScreenProps<RootStackParamList, "Dashboard">;
 export default function DashboardScreen({ navigation }: Props) {
   const data = MOCK_DASHBOARD;
   const userName = "Alex"; // placeholder — real app would come from auth context
+  const insets = useSafeAreaInsets();
 
   function handleLogout() {
     logout();
@@ -238,15 +240,15 @@ export default function DashboardScreen({ navigation }: Props) {
   }
 
   return (
-    <ScrollView
-      style={styles.screen}
-      contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}
-    >
+      <ScrollView
+        style={styles.screen}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
       {/* ------------------------------------------------------------------ */}
       {/* Header                                                               */}
       {/* ------------------------------------------------------------------ */}
-      <View style={styles.header}>
+      <View style={[styles.header, { marginTop: insets.top }]}>
         <View style={styles.headerLeft}>
           <Text style={styles.greeting}>
             {getGreeting()}, {userName}
@@ -436,7 +438,12 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "flex-start",
     backgroundColor: "#0c4aad",
-    paddingTop: 60,
+    // marginTop is applied dynamically via useSafeAreaInsets() -- margin
+    // (not padding) leaves an actual gap above the header's blue
+    // background, so the status bar area shows the screen's own neutral
+    // background behind it instead of blue, and its default (unmodified)
+    // icon color stays visible without needing a per-screen override.
+    paddingTop: 20,
     paddingBottom: 24,
     paddingHorizontal: 20,
   },
