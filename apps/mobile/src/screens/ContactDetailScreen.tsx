@@ -255,6 +255,15 @@ export default function ContactDetailScreen() {
             {contact.phones.length > 0 && (
               <TouchableOpacity
                 style={styles.actionBtn}
+                onPress={() => openUrl(`sms:${contact.phones[0]}`)}
+              >
+                <Text style={styles.actionIcon}>💭</Text>
+                <Text style={styles.actionLabel}>SMS</Text>
+              </TouchableOpacity>
+            )}
+            {contact.phones.length > 0 && (
+              <TouchableOpacity
+                style={styles.actionBtn}
                 onPress={() => openUrl(`https://wa.me/${contact.phones[0].replace(/\D/g, "")}`)}
               >
                 <Text style={styles.actionIcon}>💬</Text>
