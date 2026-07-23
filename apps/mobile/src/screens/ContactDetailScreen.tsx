@@ -1,4 +1,4 @@
-import React, { useState, useLayoutEffect } from "react";
+import React, { useState, useLayoutEffect, useEffect } from "react";
 import {
   SafeAreaView,
   ScrollView,
@@ -16,6 +16,7 @@ import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 import { RootStackParamList } from "../navigation/types";
 import { ContactDetail, Activity, getMockContactDetail, updateContact } from "../api/contacts";
+import { getLocalContact } from "../api/localContactsStore";
 
 type ContactDetailNavProp = NativeStackNavigationProp<RootStackParamList, "ContactDetail">;
 type ContactDetailRouteProp = RouteProp<RootStackParamList, "ContactDetail">;
@@ -132,6 +133,21 @@ export default function ContactDetailScreen() {
   const [contact, setContact] = useState<ContactDetail>(() =>
     getMockContactDetail(contactId)
   );
+
+  // TEMPORARY: contacts saved via the local-persistence stand-in
+  // (api/localContactsStore.ts) have ids the mock data doesn't recognize --
+  // check for one and override the mock-based initial state if found. See
+  // that file for why this exists instead of a real API call.
+  useEffect(() => {
+    let cancelled = false;
+    getLocalContact(contactId).then((local) => {
+      if (!cancelled && local) {
+        setContact(local);
+      }
+    });
+    return () => { cancelled = true; };
+  }, [contactId]);
+
   const [editMode, setEditMode] = useState(false);
   const [draftNotes, setDraftNotes] = useState(contact.notes);
   const [draftPainPoint, setDraftPainPoint] = useState(contact.painPoint);

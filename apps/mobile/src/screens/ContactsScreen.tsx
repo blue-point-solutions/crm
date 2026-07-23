@@ -1,6 +1,5 @@
 import React, { useState, useCallback } from "react";
 import {
-  SafeAreaView,
   View,
   Text,
   TextInput,
@@ -10,10 +9,12 @@ import {
   StyleSheet,
   StatusBar,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { RootStackParamList } from "../navigation/types";
 import { ContactListItem, MOCK_CONTACTS } from "../api/contacts";
+import { listLocalContacts } from "../api/localContactsStore";
 
 type ContactsNavProp = NativeStackNavigationProp<RootStackParamList, "Contacts">;
 
@@ -135,12 +136,28 @@ function ContactRow({ item, onPress }: ContactRowProps) {
 
 export default function ContactsScreen() {
   const navigation = useNavigation<ContactsNavProp>();
+  const insets = useSafeAreaInsets();
 
   const [query, setQuery] = useState("");
   const [tempFilter, setTempFilter] = useState<LeadTemp | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [localContacts, setLocalContacts] = useState<ContactListItem[]>([]);
 
-  const filtered = MOCK_CONTACTS.filter((c) => {
+  const loadLocalContacts = useCallback(() => {
+    // TEMPORARY: real contacts saved via the local-persistence stand-in
+    // (api/localContactsStore.ts), shown ahead of the MOCK_CONTACTS demo
+    // data below. Remove this merge once a real listContacts() API call
+    // replaces MOCK_CONTACTS entirely.
+    listLocalContacts().then(setLocalContacts);
+  }, []);
+
+  // Refresh on every focus, not just mount, so a contact saved via the scan
+  // flow shows up immediately when navigating back to this screen.
+  useFocusEffect(loadLocalContacts);
+
+  const allContacts = [...localContacts, ...MOCK_CONTACTS];
+
+  const filtered = allContacts.filter((c) => {
     const q = query.toLowerCase();
     const matchesQuery =
       !q ||
@@ -155,9 +172,10 @@ export default function ContactsScreen() {
 
   const handleRefresh = useCallback(() => {
     setRefreshing(true);
-    // Simulate async refresh
+    loadLocalContacts();
+    // Simulate async refresh for the (still-mock) remote portion
     setTimeout(() => setRefreshing(false), 600);
-  }, []);
+  }, [loadLocalContacts]);
 
   const CHIPS: Array<{ label: string; value: LeadTemp | null }> = [
     { label: "All", value: null },
@@ -167,7 +185,7 @@ export default function ContactsScreen() {
   ];
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBar barStyle="dark-content" />
 
       {/* Header */}
@@ -256,7 +274,7 @@ export default function ContactsScreen() {
       >
         <Text style={styles.fabIcon}>+</Text>
       </TouchableOpacity>
-    </SafeAreaView>
+    </View>
   );
 }
 

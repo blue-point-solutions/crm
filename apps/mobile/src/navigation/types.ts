@@ -1,3 +1,5 @@
+import type { ContactDraft } from "../types/contact";
+
 export type RootStackParamList = {
   Login: undefined;
   Register: undefined;
@@ -7,7 +9,8 @@ export type RootStackParamList = {
   CardScanner: { onCaptureDone?: string } | undefined;
   CameraPermission: undefined;
   CardScannerReview: { imageUri: string };
-  CardScannerConfirm: undefined;
+  CardScannerContactDetails: { draft: ContactDraft };
+  CardScannerConfirm: { contactId?: string };
   ContactDetail: { contactId: string };
   BiometricConsent: { accessToken: string };
 };
