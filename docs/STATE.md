@@ -48,8 +48,14 @@ APK distribution + in-app self-update (2026-07-28).
   mypy strict + ruff clean; deployed; live e2e: register cloud@blueptsolution.com →
   `POST /auth/password-reset/request` 200 with the Resend sender registered (no
   log-only fallback line in logs) — reset email delivered via Resend; `POST /sms`
-  401 unauthenticated (route live, Semaphore gateway built at startup). Live SMS
-  send untested (no target number; costs credits) — verify on first real use.
+  401 unauthenticated (route live, Semaphore gateway built at startup).
+- 2026-07-28 · SMS monitoring · send/record/refresh core extracted to library
+  `platform_sms.log` (SmsSendService + SmsLogStore port; 5 new tests, 60/60 pkg);
+  crm keeps the asyncpg `crm_sms_log` store + GET /sms + POST /sms/{id}/refresh.
+  Live test to +639157661766: Semaphore rejects — account has NO active sender
+  name (human gate, HUMAN-QUEUE §3); rejection correctly 400s with reason and is
+  logged (row b5938044…, status=rejected, visible via GET /sms). Delivery + the
+  refresh path against real provider ids re-verify once a sender name is approved.
 - 2026-07-28 · APK release v1.0.0 (versionCode 2) · public
   `https://apk.bpconnect.app/update.json` served; `app-v2.apk` downloaded (104 MB)
   and sha256 matches manifest

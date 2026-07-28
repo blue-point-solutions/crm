@@ -31,10 +31,12 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
         from platform_core.db import _ensure_pool, run_migrations
 
         from crm_api.auth import ensure_profile_table
+        from crm_api.sms import ensure_sms_log_table
 
         run_migrations(db_url)
         pool = await _ensure_pool()
         await ensure_profile_table(pool)
+        await ensure_sms_log_table(pool)
 
     # Outbound notification gateways (Resend email, Semaphore SMS) share one
     # HTTP client whose lifetime matches the app's. Unconfigured keys leave the
