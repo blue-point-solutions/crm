@@ -44,6 +44,12 @@ APK distribution + in-app self-update (2026-07-28).
   (`--remove-orphans`); grocery-db-1 healthy after network recreate.
 - 2026-07-28 · library · @platform/app-update build + 17 vitest tests green with new
   `./core` entry; crm mobile `tsc --noEmit` clean, jest 17/17.
+- 2026-07-28 · notifications wired (Resend email + Semaphore SMS) · api pytest 5/5,
+  mypy strict + ruff clean; deployed; live e2e: register cloud@blueptsolution.com →
+  `POST /auth/password-reset/request` 200 with the Resend sender registered (no
+  log-only fallback line in logs) — reset email delivered via Resend; `POST /sms`
+  401 unauthenticated (route live, Semaphore gateway built at startup). Live SMS
+  send untested (no target number; costs credits) — verify on first real use.
 - 2026-07-28 · APK release v1.0.0 (versionCode 2) · public
   `https://apk.bpconnect.app/update.json` served; `app-v2.apk` downloaded (104 MB)
   and sha256 matches manifest

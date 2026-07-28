@@ -19,9 +19,6 @@ import uuid
 
 import asyncpg
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, EmailStr
-from pydantic import ValidationError as PydanticValidationError
-
 from platform_core.auth.deps import get_auth_service, get_current_user
 from platform_core.auth.service import AuthService
 from platform_core.db import get_pool
@@ -29,6 +26,8 @@ from platform_core.users.exceptions import EmailAlreadyExistsError, UsernameAlre
 from platform_core.users.models import User
 from platform_core.users.schemas import UserCreate
 from platform_core.users.service import UserService
+from pydantic import BaseModel, EmailStr
+from pydantic import ValidationError as PydanticValidationError
 
 router = APIRouter(tags=["crm-auth"])
 
@@ -51,7 +50,7 @@ class LoginBody(BaseModel):
 class TokenPairOut(BaseModel):
     access_token: str
     refresh_token: str
-    token_type: str = "Bearer"  # noqa: S105  # OAuth2 token-type identifier, not a credential
+    token_type: str = "Bearer"  # OAuth2 token-type identifier, not a credential
 
 
 async def ensure_profile_table(pool: asyncpg.Pool) -> None:

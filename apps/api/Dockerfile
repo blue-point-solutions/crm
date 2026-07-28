@@ -12,6 +12,8 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 # Mirror the dev/CI sibling layout so ../../../library/packages/* resolves.
 COPY library/packages/platform /factory/library/packages/platform
 COPY library/packages/platform-tenancy /factory/library/packages/platform-tenancy
+COPY library/packages/platform-email /factory/library/packages/platform-email
+COPY library/packages/platform-sms /factory/library/packages/platform-sms
 COPY crm/apps/api /factory/crm/apps/api
 
 WORKDIR /factory/crm/apps/api
