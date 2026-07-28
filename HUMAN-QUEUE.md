@@ -18,14 +18,23 @@ distributing outside the internal fleet, generate a real release keystore,
 back it up, and wire it into the gradle signing config. Losing the signing key
 strands every installed device on manual reinstall.
 
-## 3. Semaphore sender name (blocks ALL SMS sending)
-Live test 2026-07-28 to +639157661766: Semaphore rejects every send with
-"No active sender name found. Please apply for a sender name before sending
-messages." — the account (79422, 5010 credits) cannot use even the default
-sender until one is approved. Dashboard → Sender Names → apply (e.g.
-BPCONNECT); approval usually takes days. Then set `SEMAPHORE_SENDER_NAME` in
-crm/.env (and grocery's backend .env), redeploy, and retry — every attempt is
-already logged in `crm_sms_log` (GET /sms) for verification.
+## 3. Semaphore sender name (blocks ALL SMS sending) — VERIFIED 2026-07-28
+Confirmed empirically AND against Semaphore's published policy; there is no
+workaround inside Semaphore:
+- No sendername → "No active sender name found. Please apply…". Explicit
+  `sendername=SEMAPHORE`/`Semaphore` → "The senderName supplied is not valid".
+  The `/otp` endpoint fails identically. Account sender-name list is empty;
+  account itself is fine (Active, ₱2,500 → 5,000 credits, PayPal).
+- Root cause: **since 2024-07-01 Semaphore removed the shared default
+  "Semaphore" sender** (anti-abuse); every account must register its own.
+- Application (dashboard → Sender Names): needs a business association and a
+  realistic sample message (no "test"-style names/samples); approval takes
+  **up to 5 business days** → START THE CLOCK NOW (e.g. BPCONNECT).
+- After approval: set `SEMAPHORE_SENDER_NAME` in crm/.env (+ grocery backend
+  .env), redeploy, retry — attempts are logged in `crm_sms_log` (GET /sms).
+- Interim: the mobile app's SMS quick action sends via the device SIM and is
+  unaffected. Note other PH gateways (PhilSMS/iTexMo) enforce the same
+  telco-level sender-ID registration — switching providers doesn't dodge this.
 
 ## 4. Grocery public hostname (decision)
 `bpconnect.app` is active in the Cloudflare account and the **crm** tunnel is
