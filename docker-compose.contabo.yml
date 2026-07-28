@@ -1,0 +1,53 @@
+# Contabo production stack for the CRM backend: FastAPI API + APK download
+# server. Postgres is SHARED with grocery — the grocery stack's `db` service
+# joins the external `shared-db` docker network (alias `grocery-db`) and hosts
+# a separate `crm` database/role; this stack runs no postgres of its own.
+# (Old crm-pgdata volume is kept on the box as a fallback snapshot.)
+#
+# Ingress: the box runs a host-level cloudflared (systemd, tunnel "crm",
+# remotely-managed config) with
+#   api.bpconnect.app -> http://localhost:8000   (api)
+#   apk.bpconnect.app -> http://localhost:8081   (apk downloads + update.json)
+# so both services publish on loopback only. No other inbound ports.
+#
+#   docker network create shared-db   # once per box (deploy script does this)
+#   docker compose -f docker-compose.contabo.yml up -d --build --remove-orphans
+#
+# Run via scripts/deploy-contabo.sh (rsyncs crm/ + the sibling library/ to the
+# box and ships .env). Secrets live in .env (gitignored, synced by the script).
+services:
+  api:
+    build:
+      # Factory root holding crm/ + library/ on the box (sibling-checkout layout).
+      context: ..
+      dockerfile: crm/apps/api/Dockerfile
+    env_file: .env
+    environment:
+      CRM_ENVIRONMENT: production
+      # postgresql:// — SQLAlchemy (platform-core migrations) rejects postgres://
+      # `grocery-db` is the shared postgres' alias on the shared-db network.
+      CRM_DATABASE_URL: postgresql://${CRM_POSTGRES_USER:-crm}:${CRM_POSTGRES_PASSWORD:?set in .env}@grocery-db:5432/${CRM_POSTGRES_DB:-crm}
+      # platform-core's PlatformSettings reads the unprefixed names (JWT_SECRET
+      # comes through env_file).
+      DATABASE_URL: postgresql://${CRM_POSTGRES_USER:-crm}:${CRM_POSTGRES_PASSWORD:?set in .env}@grocery-db:5432/${CRM_POSTGRES_DB:-crm}
+    ports:
+      - "127.0.0.1:8000:8000"   # host cloudflared ingress target; loopback only
+    networks:
+      - default
+      - shared-db
+    restart: unless-stopped
+
+  apk:
+    # Static server for sideloaded Android builds: update.json manifest +
+    # versioned APKs, published by scripts/release-apk.sh into apk-dist/.
+    image: nginx:alpine
+    volumes:
+      - ./infra/apk-nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./apk-dist:/usr/share/nginx/html:ro
+    ports:
+      - "127.0.0.1:8081:80"   # host cloudflared ingress target; loopback only
+    restart: unless-stopped
+
+networks:
+  shared-db:
+    external: true

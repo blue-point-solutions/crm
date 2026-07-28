@@ -32,3 +32,6 @@ test-results/
 
 # per-machine id written by bootstrap-machine.sh
 .machine-id
+
+# APK publish dir (binaries; filled by scripts/release-apk.sh)
+apk-dist/
