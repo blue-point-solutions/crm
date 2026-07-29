@@ -96,11 +96,20 @@ APK distribution + in-app self-update (2026-07-28).
   PUT 200 to R2 → public URL 200.
 
 ## Next
-- Device-test the update loop on a fleet A15: install v2 APK, publish v3, confirm
-  prompt → download → OS installer → relaunch (cannot be CI-tested).
-- Feature work: card scan endpoints (R2 storage via platform-storage-r2) per docs/05-api.md.
-- Set `CRM_CORS_ORIGINS` when a browser-based client appears (mobile app doesn't need it).
+- Merge PR #57 (feat/notify-wiring → main) once its review comes back clean;
+  publish v1.1.0 (versionCode 3) via `BUMP=0 bash scripts/release-apk.sh` after
+  the emulator smoke test of the release build (R8 is newly enabled — verify
+  the minified build boots before the fleet sees it).
+- Device-test v3 on a fleet A15 (HUMAN-QUEUE §5) — update loop + camera OCR +
+  biometric unlock on real hardware.
+- Offline sync (docs/05-api.md POST /sync/push, GET /sync/pull) — the one
+  Phase-1 contract item deliberately not built this pass; needs a joint look
+  at platform-kiosk-offline vs crm PR #35's AsyncStorage stand-in shape.
+- Phase 2 when unblocked: deals API (#37, needs erp access), push reminders,
+  tags/status/source management UI, sales_pipeline() wiring (#255 merged).
+- Set `CRM_CORS_ORIGINS` tightly if a browser-based client ships.
 
 ## Blockers
-- None mechanical. Human gates: token expiry 2026-08-25, release keystore, grocery
-  hostname decision (HUMAN-QUEUE.md).
+- None mechanical. Human gates in HUMAN-QUEUE.md: token expiry 2026-08-25,
+  release keystore, Semaphore sender name, kvm group, v3 device test,
+  erp access/CI billing, grocery hostname.
