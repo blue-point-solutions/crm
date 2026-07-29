@@ -61,22 +61,27 @@ function formatFollowUp(dateStr: string): string {
 // ---------------------------------------------------------------------------
 
 interface StatTileProps {
+  onPress?: () => void;
   value: string | number;
   label: string;
   color: string;
   hint?: string;
 }
 
-function StatTile({ value, label, color, hint }: StatTileProps) {
+function StatTile({ value, label, color, hint, onPress }: StatTileProps) {
+  const Wrapper = onPress ? TouchableOpacity : View;
   return (
-    <View
+    <Wrapper
       style={[styles.statTile, { borderTopColor: color }]}
       accessibilityLabel={`${label}: ${value}${hint ? ` (${hint})` : ""}`}
+      {...(onPress
+        ? { onPress, accessibilityRole: "button" as const, activeOpacity: 0.85 }
+        : {})}
     >
       <Text style={[styles.statValue, { color }]}>{value}</Text>
       <Text style={styles.statLabel}>{label}</Text>
       {hint ? <Text style={styles.statHint}>{hint}</Text> : null}
-    </View>
+    </Wrapper>
   );
 }
 
@@ -280,13 +285,13 @@ export default function DashboardScreen({ navigation }: Props) {
               value={data.activeDealsCount}
               label="Active Deals"
               color={colors.success}
-              hint="Phase 2"
+              onPress={() => navigation.navigate("Pipeline")}
             />
             <StatTile
-              value={data.pipelineValue.toLocaleString("en-GB")}
+              value={`₱${data.pipelineValue.toLocaleString("en-PH", { maximumFractionDigits: 0 })}`}
               label="Pipeline Value"
               color={colors.coldDark}
-              hint="Phase 2"
+              onPress={() => navigation.navigate("Pipeline")}
             />
           </View>
 

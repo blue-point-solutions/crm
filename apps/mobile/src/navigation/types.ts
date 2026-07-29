@@ -6,6 +6,7 @@ export type RootStackParamList = {
   Dashboard: undefined;
   Contacts: undefined;
   ImportExport: undefined;
+  Pipeline: undefined;
   CardScanner: { onCaptureDone?: string } | undefined;
   CameraPermission: undefined;
   CardScannerReview: { imageUri: string };

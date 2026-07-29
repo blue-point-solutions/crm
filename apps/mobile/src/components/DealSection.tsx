@@ -1,5 +1,6 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import AppButton from "./AppButton";
 import AppTextInput from "./AppTextInput";
@@ -90,9 +91,13 @@ export default function DealSection({ contactId, contactName, onChanged }: DealS
     }
   }, [contactId]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  // Refetch on screen focus — the Pipeline board can advance this contact's
+  // deal while ContactDetail sits in the back stack.
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load])
+  );
 
   const handleStart = useCallback(async () => {
     if (busy) return;
