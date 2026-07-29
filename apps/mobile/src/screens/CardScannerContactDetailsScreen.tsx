@@ -13,6 +13,7 @@ import { createContact } from "../api/contacts";
 import { uploadCardImage } from "../api/cards";
 import { deleteCardImage } from "../utils/cardImage";
 import { DateField } from "../components";
+import { scheduleFollowUpReminder } from "../utils/reminders";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/types";
@@ -153,6 +154,13 @@ export default function CardScannerContactDetailsScreen({ navigation, route }: P
         followUpDate: followUp,
         sourceMethod: "Card Scan",
       });
+      if (followUp) {
+        scheduleFollowUpReminder(
+          created.id,
+          `${created.firstName} ${created.lastName}`.trim(),
+          followUp
+        );
+      }
       // Local temp photo is no longer needed once the contact is saved
       // (either uploaded to R2 or intentionally not kept) — security #52.
       deleteCardImage(draft.cardImageUri);

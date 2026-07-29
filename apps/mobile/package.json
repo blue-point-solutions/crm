@@ -26,6 +26,7 @@
     "expo-intent-launcher": "~56.0.4",
     "expo-local-authentication": "~56.0.4",
     "expo-modules-core": "~56.0.17",
+    "expo-notifications": "~56.0.22",
     "expo-secure-store": "~56.0.4",
     "expo-sharing": "~56.0.23",
     "expo-shutter-sound": "file:./modules/expo-shutter-sound",
