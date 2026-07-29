@@ -9,6 +9,7 @@ export interface ContactListItem {
   phone?: string;
   leadTemperature?: "Hot" | "Warm" | "Cold";
   source?: string;
+  favorite?: boolean;
   completenessScore: number; // 0-100
   dateAdded: string;
 }
