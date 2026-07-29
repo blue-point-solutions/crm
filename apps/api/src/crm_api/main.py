@@ -31,12 +31,14 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
         from platform_core.db import _ensure_pool, run_migrations
 
         from crm_api.auth import ensure_profile_table
+        from crm_api.contacts import ensure_contacts_tables
         from crm_api.sms import ensure_sms_log_table
 
         run_migrations(db_url)
         pool = await _ensure_pool()
         await ensure_profile_table(pool)
         await ensure_sms_log_table(pool)
+        await ensure_contacts_tables(pool)
 
     # Outbound notification gateways (Resend email, Semaphore SMS) share one
     # HTTP client whose lifetime matches the app's. Unconfigured keys leave the
@@ -116,6 +118,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     from crm_api.sms import router as sms_router
 
     app.include_router(sms_router)
+
+    from crm_api.contacts import router as contacts_router
+    from crm_api.dashboard import router as dashboard_router
+
+    app.include_router(contacts_router)
+    app.include_router(dashboard_router)
 
     return app
 
