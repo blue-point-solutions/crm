@@ -30,7 +30,7 @@ import {
   toggleFavorite,
   updateContact,
 } from "../api/contacts";
-import {
+import { DateField,
   AppButton,
   AppTextInput,
   Avatar,
@@ -622,14 +622,10 @@ export default function ContactDetailScreen() {
                 style={styles.textArea}
                 accessibilityLabel="Notes"
               />
-              <AppTextInput
-                label="Follow-up date (YYYY-MM-DD)"
-                value={draftFollowUp}
-                onChangeText={setDraftFollowUp}
-                placeholder="YYYY-MM-DD"
-                autoCapitalize="none"
-                autoCorrect={false}
-                accessibilityLabel="Follow-up date"
+              <DateField
+                label="Follow-up date"
+                value={draftFollowUp || undefined}
+                onChange={(iso) => setDraftFollowUp(iso ?? "")}
               />
               <View style={styles.editActions}>
                 <AppButton
