@@ -142,3 +142,20 @@ APK distribution + in-app self-update (2026-07-28).
 - Next increments: contact-detail deal card + start-deal (mobile), pipeline
   board screen, auto-log quick actions + local follow-up notifications,
   tags management. Placement of #37 in crm/apps/api flagged for Sid.
+
+## Phase 2 — increments 2–4 + release (2026-07-29)
+- Mobile deals shipped in three reviewed PRs (#60 deal card on ContactDetail,
+  #61 Pipeline board screen + dashboard tile links, #62 quick-action auto-log
+  + local follow-up reminders). Every advance/lost button renders from the
+  server's allowedTransitions — no client-side stage graph. Reviews caught
+  and fixed: stale-load races, duplicate-deal-on-error path, comma-decimal
+  peso parsing, post-advance wrong-tab repaint, missing foreground
+  notification handler. Gates each PR: tsc clean, jest 35/35.
+- v1.2.0 (versionCode 4) published to apk.bpconnect.app — carries the deals
+  UI AND the expo-notifications native module (reminders are inert on v3
+  builds by design, try/catch no-op). Manifest sha verified against the
+  staged APK (bdd20be1…); badging versionCode=4/1.2.0.
+- Remaining Phase 2: tags/status/source management UI (increment 5), then
+  the deferred offline-sync decision. On-device verification of v4 rides
+  HUMAN-QUEUE §5 (now also: update prompt v2/v3→v4, notification permission
+  + a reminder firing, deal flow on hardware).
