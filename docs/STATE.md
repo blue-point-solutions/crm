@@ -80,6 +80,21 @@ APK distribution + in-app self-update (2026-07-28).
   (revision 2, status Active). Tables crm_contacts/crm_activity bootstrap in
   lifespan; tenant_id UUID NOT NULL defaulted per Phase-4 recommendation.
 
+- 2026-07-29 · mobile on real backend + design system · tsc clean, jest 32/32
+  after every step. Sessions persist in SecureStore w/ cold-start restore;
+  biometrics now unlock the stored pair (empty-refresh-token bug gone).
+  Scanner save → POST /contacts (R2 card-image upload when opted in, temp
+  file deleted after). Contacts/Dashboard/ContactDetail rewired to live API
+  (server search/filter/sort/pagination, optimistic favorites, activity
+  composer, revision-aware PATCH w/ 409 handling, focus refetch,
+  loading/error/empty states). Design system: src/theme + 12 shared
+  components, Ionicons replace emoji, dead HomeScreen/bell removed, Register
+  validation + confirm-password, native DateField. Security #48–#53 done
+  (__DEV__ gate, cleartext off, R8+shrink, secure storage, temp-file
+  cleanup, npm audit fix — 2 high resolved).
+- 2026-07-29 · cards API · POST /cards/upload-url live-verified: presign →
+  PUT 200 to R2 → public URL 200.
+
 ## Next
 - Device-test the update loop on a fleet A15: install v2 APK, publish v3, confirm
   prompt → download → OS installer → relaunch (cannot be CI-tested).
