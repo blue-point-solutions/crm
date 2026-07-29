@@ -135,10 +135,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     from crm_api.cards import router as cards_router
     from crm_api.contacts import router as contacts_router
     from crm_api.dashboard import router as dashboard_router
+    from crm_api.import_export import router as import_export_router
 
     app.include_router(contacts_router)
     app.include_router(dashboard_router)
     app.include_router(cards_router)
+    app.include_router(import_export_router)
 
     return app
 
