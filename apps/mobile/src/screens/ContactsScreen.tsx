@@ -359,6 +359,15 @@ export default function ContactsScreen() {
         <View style={styles.countBadge} accessibilityLabel={`${total} contacts`}>
           <Text style={styles.countText}>{total}</Text>
         </View>
+        <View style={{ flex: 1 }} />
+        <TouchableOpacity
+          onPress={() => navigation.navigate("ImportExport")}
+          accessibilityRole="button"
+          accessibilityLabel="Import and export contacts"
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Ionicons name="swap-vertical-outline" size={22} color={colors.primary} />
+        </TouchableOpacity>
       </View>
 
       {/* Search bar */}
