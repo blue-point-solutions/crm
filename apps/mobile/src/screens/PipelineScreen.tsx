@@ -52,6 +52,12 @@ export default function PipelineScreen({ navigation }: Props) {
   const [error, setError] = useState(false);
   const [busyDeal, setBusyDeal] = useState<string | null>(null);
   const seq = useRef(0);
+  // Refs mirror state the async handlers must read at resolution time, not
+  // at press time: the selected stage (a post-advance reload must refresh
+  // whatever tab is selected NOW) and a synchronous busy latch (state-based
+  // guards leave a pre-render double-tap window).
+  const stageRef = useRef<DealStage>("lead");
+  const busyRef = useRef(false);
 
   const load = useCallback(
     async (selected: DealStage, mode: "initial" | "refresh" | "silent") => {
@@ -95,17 +101,15 @@ export default function PipelineScreen({ navigation }: Props) {
     }, [load, stage])
   );
 
-  const selectStage = useCallback(
-    (s: DealStage) => {
-      setStage(s);
-      load(s, "silent");
-    },
-    [load]
-  );
+  const selectStage = useCallback((s: DealStage) => {
+    stageRef.current = s;
+    setStage(s); // the focus effect (deps include stage) fires the load
+  }, []);
 
   const handleAdvance = useCallback(
     async (deal: Deal, toStage: DealStage) => {
-      if (busyDeal) return;
+      if (busyRef.current) return;
+      busyRef.current = true;
       seq.current++; // invalidate in-flight loads
       setBusyDeal(deal.id);
       try {
@@ -121,11 +125,16 @@ export default function PipelineScreen({ navigation }: Props) {
       } catch {
         toast.show("Couldn't move the deal", "error");
       } finally {
+        // Reload whatever stage is selected NOW (the user may have switched
+        // tabs mid-flight; the press-time closure would repaint the wrong
+        // stage's deals under the new tab). Await before releasing the latch
+        // so stale rows aren't tappable with outdated allowedTransitions.
+        await load(stageRef.current, "silent");
+        busyRef.current = false;
         setBusyDeal(null);
-        load(stage, "silent");
       }
     },
-    [busyDeal, toast, load, stage]
+    [toast, load]
   );
 
   const stageMeta = (key: DealStage) => board?.stages.find((s) => s.key === key);
