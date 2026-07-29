@@ -147,3 +147,24 @@ describe("theme helpers", () => {
     expect(completenessColor(0)).toBe(colors.hot);
   });
 });
+
+describe("parsePesoInput", () => {
+  const { parsePesoInput } = require("../DealSection");
+  it("accepts plain, thousands-separated, and decimal amounts", () => {
+    expect(parsePesoInput("150000")).toBe(150000);
+    expect(parsePesoInput("150,000")).toBe(150000);
+    expect(parsePesoInput("1,500,000.75")).toBe(1500000.75);
+    expect(parsePesoInput("1500.50")).toBe(1500.5);
+    expect(parsePesoInput("")).toBe(0);
+  });
+  it("treats comma-as-decimal correctly instead of 100x-inflating", () => {
+    expect(parsePesoInput("1500,50")).toBe(1500.5);
+    expect(parsePesoInput("12,34")).toBe(12.34); // only possible read: decimal comma
+  });
+  it("rejects ambiguous or non-numeric input", () => {
+    expect(parsePesoInput(",")).toBeNull();
+    expect(parsePesoInput(".")).toBeNull();
+    expect(parsePesoInput("1e5")).toBeNull();
+    expect(parsePesoInput("abc")).toBeNull();
+  });
+});

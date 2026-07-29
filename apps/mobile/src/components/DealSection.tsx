@@ -25,6 +25,20 @@ const STAGE_COLORS: Record<DealStage, string> = {
   lost: colors.error,
 };
 
+/**
+ * Parse a user-typed peso amount. Accepts "150000", "150,000", "1500.50",
+ * and comma-as-decimal "1500,50" (numeric keyboards on comma-decimal
+ * locales); rejects anything ambiguous rather than silently mis-scaling.
+ */
+export function parsePesoInput(raw: string): number | null {
+  const t = raw.replace(/\s/g, "");
+  if (t === "") return 0;
+  if (/^\d{1,3}(,\d{3})+(\.\d{1,2})?$/.test(t)) return Number(t.replace(/,/g, ""));
+  if (/^\d+(\.\d{1,2})?$/.test(t)) return Number(t);
+  if (/^\d+,\d{1,2}$/.test(t)) return Number(t.replace(",", "."));
+  return null;
+}
+
 function peso(value: number): string {
   return `₱${value.toLocaleString("en-PH", { maximumFractionDigits: 0 })}`;
 }
@@ -52,6 +66,7 @@ export default function DealSection({ contactId, contactName, onChanged }: DealS
   const [valueText, setValueText] = useState("");
   const [busy, setBusy] = useState(false);
   const [confirmLost, setConfirmLost] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const seq = useRef(0);
 
   const load = useCallback(async () => {
@@ -64,8 +79,12 @@ export default function DealSection({ contactId, contactName, onChanged }: DealS
       if (id !== seq.current) return;
       setDeal(open.items[0] ?? null);
       setClosedCount(closed.total);
+      setLoadError(false);
     } catch {
-      if (id === seq.current) setDeal(null);
+      // Never fall through to the start-deal form on a failed read — the
+      // contact may well have an open deal, and starting a second one would
+      // orphan it (no one-open-deal constraint server-side).
+      if (id === seq.current) setLoadError(true);
     } finally {
       if (id === seq.current) setLoading(false);
     }
@@ -76,11 +95,13 @@ export default function DealSection({ contactId, contactName, onChanged }: DealS
   }, [load]);
 
   const handleStart = useCallback(async () => {
-    const value = valueText.trim() ? Number(valueText.replace(/[,\s]/g, "")) : 0;
-    if (Number.isNaN(value) || value < 0) {
-      toast.show("Deal value must be a number", "error");
+    if (busy) return;
+    const value = parsePesoInput(valueText.trim());
+    if (value === null || value < 0) {
+      toast.show("Enter the value like 150000 or 150,000", "error");
       return;
     }
+    seq.current++; // invalidate any in-flight load
     setBusy(true);
     try {
       const created = await createDeal(contactId, title.trim(), value);
@@ -95,11 +116,12 @@ export default function DealSection({ contactId, contactName, onChanged }: DealS
     } finally {
       setBusy(false);
     }
-  }, [contactId, title, valueText, toast, onChanged]);
+  }, [busy, contactId, title, valueText, toast, onChanged]);
 
   const handleAdvance = useCallback(
     async (toStage: DealStage) => {
-      if (!deal) return;
+      if (!deal || busy) return;
+      seq.current++; // invalidate any in-flight load
       setBusy(true);
       try {
         const updated = await advanceDeal(deal.id, toStage);
@@ -121,10 +143,27 @@ export default function DealSection({ contactId, contactName, onChanged }: DealS
         setBusy(false);
       }
     },
-    [deal, toast, onChanged, load]
+    [deal, busy, toast, onChanged, load]
   );
 
   if (loading) return null;
+
+  if (loadError) {
+    return (
+      <TouchableOpacity
+        style={styles.errorRow}
+        onPress={() => {
+          setLoading(true);
+          load();
+        }}
+        accessibilityRole="button"
+        accessibilityLabel="Retry loading deal"
+      >
+        <Ionicons name="refresh" size={16} color={colors.textSecondary} />
+        <Text style={styles.errorText}>Couldn't load deal info — tap to retry</Text>
+      </TouchableOpacity>
+    );
+  }
 
   // ── No open deal ────────────────────────────────────────────────────────
   if (!deal) {
@@ -325,4 +364,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   loseText: { color: colors.error, fontSize: typo.size.caption + 1, fontWeight: "600" },
+  errorRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    minHeight: 44,
+  },
+  errorText: { color: colors.textSecondary, fontSize: typo.size.caption + 1 },
 });
