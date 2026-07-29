@@ -141,12 +141,20 @@ class FakeRepo:
         }
 
 
+class _NoDeals:
+    async def list_open_jobs(self, tenant_id: str) -> tuple[object, ...]:
+        return ()
+
+
 def _client(repo: FakeRepo | None = None) -> tuple[TestClient, FakeRepo]:
+    from crm_api.deals import get_tracking_store
+
     repo = repo or FakeRepo()
     app = create_app(Settings(database_url=None))
     app.dependency_overrides[get_current_user] = lambda: FakeUser()
     app.dependency_overrides[get_contact_repo] = lambda: repo
     app.dependency_overrides[get_dashboard_repo] = lambda: repo
+    app.dependency_overrides[get_tracking_store] = lambda: _NoDeals()
     return TestClient(app), repo
 
 

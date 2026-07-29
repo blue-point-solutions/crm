@@ -18,6 +18,7 @@ dependencies = [
     "platform-email",
     "platform-sms",
     "platform-contacts",
+    "platform-tracking",
     "platform-import-export",
     "platform-storage",
     "platform-storage-r2",
@@ -36,6 +37,7 @@ platform-tenancy = { path = "../../../library/packages/platform-tenancy", editab
 platform-email = { path = "../../../library/packages/platform-email", editable = true }
 platform-sms = { path = "../../../library/packages/platform-sms", editable = true }
 platform-contacts = { path = "../../../library/packages/platform-contacts", editable = true }
+platform-tracking = { path = "../../../library/packages/platform-tracking", editable = true }
 platform-import-export = { path = "../../../library/packages/platform-import-export", editable = true }
 platform-storage = { path = "../../../library/packages/platform-storage", editable = true }
 platform-storage-r2 = { path = "../../../library/packages/platform-storage-r2", editable = true }

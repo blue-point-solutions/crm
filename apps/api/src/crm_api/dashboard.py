@@ -20,6 +20,7 @@ from pydantic.alias_generators import to_camel
 
 from crm_api.auth import DEFAULT_TENANT_ID
 from crm_api.contacts import ContactListItemOut, _list_item
+from crm_api.deals import get_tracking_store
 
 router = APIRouter(tags=["dashboard"])
 
@@ -90,8 +91,10 @@ class DashboardOut(_Camel):
 async def dashboard(
     _user: User = Depends(get_current_user),  # noqa: B008
     repo: DashboardRepo = Depends(get_dashboard_repo),  # noqa: B008
+    tracking: Any = Depends(get_tracking_store),  # noqa: B008
 ) -> DashboardOut:
     data = await repo.summary(DEFAULT_TENANT_ID)
+    open_jobs = await tracking.list_open_jobs(str(DEFAULT_TENANT_ID))
     return DashboardOut(
         total_contacts=data["total_contacts"],
         recent=[_list_item(r) for r in data["recent"]],
@@ -100,4 +103,8 @@ async def dashboard(
             for r in data["upcoming_reminders"]
         ],
         inactive_30d=[_list_item(r) for r in data["inactive_30d"]],
+        active_deals_count=len(open_jobs),
+        pipeline_value=sum(
+            float(dict(j.metadata).get("value", 0) or 0) for j in open_jobs
+        ),
     )

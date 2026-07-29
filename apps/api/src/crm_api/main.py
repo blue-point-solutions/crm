@@ -40,6 +40,10 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
         await ensure_sms_log_table(pool)
         await ensure_contacts_tables(pool)
 
+        from crm_api.deals import ensure_deals_schema
+
+        await ensure_deals_schema(pool)
+
     # Outbound notification gateways (Resend email, Semaphore SMS) share one
     # HTTP client whose lifetime matches the app's. Unconfigured keys leave the
     # defaults in place: log-only email, 503 from POST /sms.
@@ -135,12 +139,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     from crm_api.cards import router as cards_router
     from crm_api.contacts import router as contacts_router
     from crm_api.dashboard import router as dashboard_router
+    from crm_api.deals import router as deals_router
     from crm_api.import_export import router as import_export_router
 
     app.include_router(contacts_router)
     app.include_router(dashboard_router)
     app.include_router(cards_router)
     app.include_router(import_export_router)
+    app.include_router(deals_router)
 
     return app
 
