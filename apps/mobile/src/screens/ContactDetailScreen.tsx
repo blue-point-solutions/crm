@@ -30,7 +30,7 @@ import {
   toggleFavorite,
   updateContact,
 } from "../api/contacts";
-import { DateField,
+import { DealSection, DateField,
   AppButton,
   AppTextInput,
   Avatar,
@@ -688,6 +688,15 @@ export default function ContactDetailScreen() {
         </View>
 
         {/* ── Activity Timeline ───────────────────────────────────────────── */}
+        <SectionHeader title="Deal" />
+        <View style={styles.card}>
+          <DealSection
+            contactId={contactId}
+            contactName={`${contact.firstName} ${contact.lastName}`.trim()}
+            onChanged={fetchContact}
+          />
+        </View>
+
         <SectionHeader title="Activity Timeline" />
         <View style={styles.card}>
           {contact.activities.length === 0 ? (
