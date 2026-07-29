@@ -18,6 +18,8 @@ dependencies = [
     "platform-email",
     "platform-sms",
     "platform-contacts",
+    "platform-storage",
+    "platform-storage-r2",
     "httpx>=0.27",
 ]
 
@@ -32,6 +34,8 @@ platform-tenancy = { path = "../../../library/packages/platform-tenancy", editab
 platform-email = { path = "../../../library/packages/platform-email", editable = true }
 platform-sms = { path = "../../../library/packages/platform-sms", editable = true }
 platform-contacts = { path = "../../../library/packages/platform-contacts", editable = true }
+platform-storage = { path = "../../../library/packages/platform-storage", editable = true }
+platform-storage-r2 = { path = "../../../library/packages/platform-storage-r2", editable = true }
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/crm_api"]
@@ -54,5 +58,7 @@ module = [
     "platform_tenancy", "platform_tenancy.*",
     "platform_email", "platform_email.*",
     "platform_sms", "platform_sms.*",
+    "platform_storage", "platform_storage.*",
+    "platform_storage_r2", "platform_storage_r2.*",
 ]
 ignore_missing_imports = true

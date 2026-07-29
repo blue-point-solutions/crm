@@ -71,6 +71,19 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
             sender_name=settings.semaphore_sender_name or None,
         )
 
+    # Card-image storage: presigned direct-to-R2 uploads (bucket crm-images).
+    if settings.r2_account_id and settings.r2_bucket and settings.r2_secret_access_key:
+        from platform_storage_r2 import R2StorageAdapter, R2StorageConfig
+
+        app.state.card_storage = R2StorageAdapter(
+            config=R2StorageConfig(
+                account_id=settings.r2_account_id,
+                bucket=settings.r2_bucket,
+                access_key_id=settings.r2_access_key_id,
+                secret_access_key=settings.r2_secret_access_key.get_secret_value(),
+            )
+        )
+
     try:
         yield
     finally:
@@ -119,11 +132,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.include_router(sms_router)
 
+    from crm_api.cards import router as cards_router
     from crm_api.contacts import router as contacts_router
     from crm_api.dashboard import router as dashboard_router
 
     app.include_router(contacts_router)
     app.include_router(dashboard_router)
+    app.include_router(cards_router)
 
     return app
 

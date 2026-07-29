@@ -15,6 +15,8 @@ COPY library/packages/platform-tenancy /factory/library/packages/platform-tenanc
 COPY library/packages/platform-email /factory/library/packages/platform-email
 COPY library/packages/platform-sms /factory/library/packages/platform-sms
 COPY library/packages/platform-contacts /factory/library/packages/platform-contacts
+COPY library/packages/platform-storage /factory/library/packages/platform-storage
+COPY library/packages/platform-storage-r2 /factory/library/packages/platform-storage-r2
 COPY crm/apps/api /factory/crm/apps/api
 
 WORKDIR /factory/crm/apps/api

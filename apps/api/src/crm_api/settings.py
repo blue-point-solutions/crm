@@ -43,6 +43,23 @@ class Settings(BaseSettings):
     )
     semaphore_sender_name: str = Field(default="", validation_alias="SEMAPHORE_SENDER_NAME")
 
+    # Cloudflare R2 card-image storage (bucket crm-images). Unprefixed aliases
+    # match the existing .env; account id is embedded in R2_ENDPOINT. Unset ⇒
+    # POST /cards/upload-url answers 503 and the app keeps card images local.
+    r2_endpoint: str = Field(default="", validation_alias="R2_ENDPOINT")
+    r2_bucket: str = Field(default="", validation_alias="R2_BUCKET")
+    r2_public_url: str = Field(default="", validation_alias="R2_PUBLIC_URL")
+    r2_access_key_id: str = Field(default="", validation_alias="R2_ACCESS_KEY_ID")
+    r2_secret_access_key: SecretStr | None = Field(
+        default=None, validation_alias="R2_SECRET_ACCESS_KEY"
+    )
+
+    @property
+    def r2_account_id(self) -> str:
+        """32-hex account id parsed out of R2_ENDPOINT."""
+        host = self.r2_endpoint.removeprefix("https://")
+        return host.split(".")[0] if host else ""
+
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
