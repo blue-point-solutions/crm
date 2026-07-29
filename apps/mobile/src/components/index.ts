@@ -33,3 +33,6 @@ export type { ConfirmSheetProps } from "./ConfirmSheet";
 
 export { default as DateField } from "./DateField";
 export type { DateFieldProps } from "./DateField";
+
+export { default as DealSection } from "./DealSection";
+export type { DealSectionProps } from "./DealSection";
