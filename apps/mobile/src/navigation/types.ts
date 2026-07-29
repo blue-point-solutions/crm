@@ -10,7 +10,11 @@ export type RootStackParamList = {
   CameraPermission: undefined;
   CardScannerReview: { imageUri: string };
   CardScannerContactDetails: { draft: ContactDraft };
-  CardScannerConfirm: undefined;
+  CardScannerConfirm: {
+    contactId: string;
+    contactName: string;
+    duplicatesCount: number;
+  };
   ContactDetail: { contactId: string };
   BiometricConsent: undefined;
 };

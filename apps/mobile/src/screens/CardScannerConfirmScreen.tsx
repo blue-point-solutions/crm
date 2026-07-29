@@ -5,10 +5,12 @@ import { RootStackParamList } from "../navigation/types";
 
 type Props = NativeStackScreenProps<RootStackParamList, "CardScannerConfirm">;
 
-export default function CardScannerConfirmScreen({ navigation }: Props) {
+export default function CardScannerConfirmScreen({ navigation, route }: Props) {
+  const { contactId, contactName, duplicatesCount } = route.params;
+
   const handleViewContact = useCallback(() => {
-    navigation.navigate("Contacts");
-  }, [navigation]);
+    navigation.replace("ContactDetail", { contactId });
+  }, [navigation, contactId]);
 
   const handleScanAnother = useCallback(() => {
     navigation.navigate("CameraPermission");
@@ -18,7 +20,14 @@ export default function CardScannerConfirmScreen({ navigation }: Props) {
     <View style={styles.root}>
       <Text style={styles.checkmark}>✓</Text>
       <Text style={styles.title}>Contact Saved</Text>
-      <Text style={styles.subtitle}>The contact has been added to your CRM.</Text>
+      <Text style={styles.subtitle}>
+        {contactName ? `${contactName} has been added to your CRM.` : "The contact has been added to your CRM."}
+      </Text>
+      {duplicatesCount > 0 && (
+        <Text style={styles.duplicateNote}>
+          Heads up: {duplicatesCount === 1 ? "1 existing contact looks" : `${duplicatesCount} existing contacts look`} similar. You can review and merge from the contact list.
+        </Text>
+      )}
 
       <View style={styles.actions}>
         <TouchableOpacity style={styles.primaryButton} onPress={handleViewContact}>
@@ -57,11 +66,19 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: "#666",
     textAlign: "center",
-    marginBottom: 48,
+    marginBottom: 12,
+  },
+  duplicateNote: {
+    fontSize: 13,
+    color: "#b7791f",
+    textAlign: "center",
+    marginBottom: 12,
+    paddingHorizontal: 8,
   },
   actions: {
     width: "100%",
     gap: 12,
+    marginTop: 36,
   },
   primaryButton: {
     backgroundColor: "#0c4aad",

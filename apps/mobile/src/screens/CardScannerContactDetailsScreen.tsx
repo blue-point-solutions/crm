@@ -6,7 +6,10 @@ import {
   TouchableOpacity,
   ScrollView,
   StyleSheet,
+  ActivityIndicator,
+  Alert,
 } from "react-native";
+import { createContact } from "../api/contacts";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/types";
@@ -100,12 +103,62 @@ export default function CardScannerContactDetailsScreen({ navigation, route }: P
     }));
   }, []);
 
-  const canSave = draft.marketingConsent !== null;
+  const [saving, setSaving] = useState(false);
 
-  const handleSave = useCallback(() => {
-    console.log("[CardScannerContactDetails] Saving draft:", JSON.stringify(draft, null, 2));
-    // TODO: Replace with real API call when backend (#7, #8) is ready
-    navigation.replace("CardScannerConfirm");
+  const canSave =
+    draft.marketingConsent !== null &&
+    (draft.firstName.trim() !== "" || draft.lastName.trim() !== "") &&
+    !saving;
+
+  const handleSave = useCallback(async () => {
+    if (draft.marketingConsent === null) return;
+    setSaving(true);
+    try {
+      // Follow-up is a plain YYYY-MM-DD from the form; send only if it parses.
+      const followUp =
+        draft.followUpDate && /^\d{4}-\d{2}-\d{2}$/.test(draft.followUpDate)
+          ? `${draft.followUpDate}T09:00:00Z`
+          : undefined;
+      const created = await createContact({
+        firstName: draft.firstName,
+        lastName: draft.lastName,
+        jobTitle: draft.jobTitle || undefined,
+        company: draft.company || undefined,
+        phones: draft.phones.filter(Boolean),
+        emails: draft.emails.filter(Boolean),
+        website: draft.website || undefined,
+        address: draft.address || undefined,
+        linkedin: draft.linkedin || undefined,
+        facebook: draft.facebook || undefined,
+        // cardImageUri is a local file:// path — server-side card image
+        // storage (R2 upload) is a separate ticket; not sent yet.
+        industry: undefined,
+        source: draft.source ?? undefined,
+        tags: draft.tags,
+        interests: draft.interests,
+        status: draft.status,
+        marketingConsent: draft.marketingConsent,
+        decisionMaker: draft.decisionMaker,
+        leadTemperature: draft.leadTemperature ?? undefined,
+        notes: draft.notes,
+        painPoint: draft.painPoint || undefined,
+        followUpDate: followUp,
+        sourceMethod: "Card Scan",
+      });
+      navigation.replace("CardScannerConfirm", {
+        contactId: created.id,
+        contactName: `${created.firstName} ${created.lastName}`.trim(),
+        duplicatesCount: created.duplicates.length,
+      });
+    } catch (e: any) {
+      Alert.alert(
+        "Couldn't Save Contact",
+        e.response?.data?.detail ?? "Check your connection and try again.",
+        [{ text: "OK" }]
+      );
+    } finally {
+      setSaving(false);
+    }
   }, [draft, navigation]);
 
   return (
@@ -244,7 +297,11 @@ export default function CardScannerContactDetailsScreen({ navigation, route }: P
           onPress={handleSave}
           disabled={!canSave}
         >
-          <Text style={styles.saveButtonText}>Save Contact</Text>
+          {saving ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.saveButtonText}>Save Contact</Text>
+          )}
         </TouchableOpacity>
       </View>
     </ScrollView>
