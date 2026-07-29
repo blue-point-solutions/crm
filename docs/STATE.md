@@ -1,5 +1,9 @@
 # Project State — CRM
 
+## Current goal (2026-07-29 session)
+Finish + polish the mobile app against the now-real backend: feature-complete,
+QoL in place, modern theme-appropriate UI. Human gates stay open, never block.
+
 ## Current phase
 MVP happy-path merged (#32); prod live on Contabo behind **bpconnect.app** with
 APK distribution + in-app self-update (2026-07-28).
@@ -44,18 +48,68 @@ APK distribution + in-app self-update (2026-07-28).
   (`--remove-orphans`); grocery-db-1 healthy after network recreate.
 - 2026-07-28 · library · @platform/app-update build + 17 vitest tests green with new
   `./core` entry; crm mobile `tsc --noEmit` clean, jest 17/17.
+- 2026-07-28 · notifications wired (Resend email + Semaphore SMS) · api pytest 5/5,
+  mypy strict + ruff clean; deployed; live e2e: register cloud@blueptsolution.com →
+  `POST /auth/password-reset/request` 200 with the Resend sender registered (no
+  log-only fallback line in logs) — reset email delivered via Resend; `POST /sms`
+  401 unauthenticated (route live, Semaphore gateway built at startup).
+- 2026-07-28 · SMS monitoring · send/record/refresh core extracted to library
+  `platform_sms.log` (SmsSendService + SmsLogStore port; 5 new tests, 60/60 pkg);
+  crm keeps the asyncpg `crm_sms_log` store + GET /sms + POST /sms/{id}/refresh.
+  Live test to +639157661766: Semaphore rejects — account has NO active sender
+  name (human gate, HUMAN-QUEUE §3); rejection correctly 400s with reason and is
+  logged (row b5938044…, status=rejected, visible via GET /sms). Delivery + the
+  refresh path against real provider ids re-verify once a sender name is approved.
 - 2026-07-28 · APK release v1.0.0 (versionCode 2) · public
   `https://apk.bpconnect.app/update.json` served; `app-v2.apk` downloaded (104 MB)
   and sha256 matches manifest
   (`c94772632c4930943ada47f0a8b60a5507784a248328b4436b5769e739d86be3`);
   `bpconnect-crm-latest.apk` 200.
 
+- 2026-07-29 · library review queue cleared · #256 platform-contacts reviewed+merged
+  (33/33, mypy strict; pushed ruff style fix). #257 platform-activity + #258
+  platform-import-export: requested changes (sync port / no validation; live
+  formula-injection on export), fixes implemented on the branches
+  (3c95af77, 215e8db9), re-verified in fresh worktrees (32/32 and 28/28, mypy
+  strict + ruff clean), merged. @platform/ocr-cards extracted from crm mobile
+  (18 vitest; crm side commit b578682).
+- 2026-07-29 · contacts API + dashboard live (crm #8) · pytest 23/23, mypy
+  strict, ruff clean; deployed; live e2e against api.bpconnect.app: register →
+  POST /contacts (201, completenessScore 65) → activity 201 → GET /contacts?q=
+  (total 1) → GET /dashboard (totals+reminder) → favorite toggle → PATCH
+  (revision 2, status Active). Tables crm_contacts/crm_activity bootstrap in
+  lifespan; tenant_id UUID NOT NULL defaulted per Phase-4 recommendation.
+
+- 2026-07-29 · mobile on real backend + design system · tsc clean, jest 32/32
+  after every step. Sessions persist in SecureStore w/ cold-start restore;
+  biometrics now unlock the stored pair (empty-refresh-token bug gone).
+  Scanner save → POST /contacts (R2 card-image upload when opted in, temp
+  file deleted after). Contacts/Dashboard/ContactDetail rewired to live API
+  (server search/filter/sort/pagination, optimistic favorites, activity
+  composer, revision-aware PATCH w/ 409 handling, focus refetch,
+  loading/error/empty states). Design system: src/theme + 12 shared
+  components, Ionicons replace emoji, dead HomeScreen/bell removed, Register
+  validation + confirm-password, native DateField. Security #48–#53 done
+  (__DEV__ gate, cleartext off, R8+shrink, secure storage, temp-file
+  cleanup, npm audit fix — 2 high resolved).
+- 2026-07-29 · cards API · POST /cards/upload-url live-verified: presign →
+  PUT 200 to R2 → public URL 200.
+
 ## Next
-- Device-test the update loop on a fleet A15: install v2 APK, publish v3, confirm
-  prompt → download → OS installer → relaunch (cannot be CI-tested).
-- Feature work: card scan endpoints (R2 storage via platform-storage-r2) per docs/05-api.md.
-- Set `CRM_CORS_ORIGINS` when a browser-based client appears (mobile app doesn't need it).
+- Merge PR #57 (feat/notify-wiring → main) once its review comes back clean;
+  publish v1.1.0 (versionCode 3) via `BUMP=0 bash scripts/release-apk.sh` after
+  the emulator smoke test of the release build (R8 is newly enabled — verify
+  the minified build boots before the fleet sees it).
+- Device-test v3 on a fleet A15 (HUMAN-QUEUE §5) — update loop + camera OCR +
+  biometric unlock on real hardware.
+- Offline sync (docs/05-api.md POST /sync/push, GET /sync/pull) — the one
+  Phase-1 contract item deliberately not built this pass; needs a joint look
+  at platform-kiosk-offline vs crm PR #35's AsyncStorage stand-in shape.
+- Phase 2 when unblocked: deals API (#37, needs erp access), push reminders,
+  tags/status/source management UI, sales_pipeline() wiring (#255 merged).
+- Set `CRM_CORS_ORIGINS` tightly if a browser-based client ships.
 
 ## Blockers
-- None mechanical. Human gates: token expiry 2026-08-25, release keystore, grocery
-  hostname decision (HUMAN-QUEUE.md).
+- None mechanical. Human gates in HUMAN-QUEUE.md: token expiry 2026-08-25,
+  release keystore, Semaphore sender name, kvm group, v3 device test,
+  erp access/CI billing, grocery hostname.

@@ -27,5 +27,6 @@ export async function getMe(): Promise<MeResponse> {
 }
 
 export function logout() {
+  // clearTokens also wipes the persisted SecureStore session.
   clearTokens();
 }

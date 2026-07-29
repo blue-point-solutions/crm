@@ -11,16 +11,13 @@
  *  2. Dashboard -> "Scan a Business Card" -> camera permission denied (no
  *     camera device in this browser context) -> "Import from Photos" fallback
  *     -> upload a fixture image.
- *  3. Card Scanner Review screen: mock OCR data loads (client-side mock --
- *     see src/utils/ocr.ts, OCR ticket #4 is still open, this is expected,
- *     not a bug), fill required Marketing Consent, save.
- *  4. Confirm screen ("Contact Saved") -> View Contact -> Contacts list.
- *
- * KNOWN GAP (not a test bug): contact persistence (#8 contacts API, blocked
- * on #3 platform-contacts) is not built yet, so "Save Contact" is also a
- * client-side mock (see CardScannerReviewScreen.tsx TODO) and the Contacts
- * list will legitimately be empty at the end of this test. This test covers
- * everything that is real today; extend step 4 once #3/#8 land.
+ *  3. Card Scanner Review screen: mock OCR data loads (RN-Web has no ML Kit,
+ *     so src/utils/ocr.ts intentionally falls back to a fixed mock result on
+ *     web -- on-device OCR is real on Android/iOS), fill required Marketing
+ *     Consent, save.
+ *  4. Save Contact -> REAL POST /contacts (ticket #8) -> Confirm screen
+ *     names the contact -> View Contact -> real ContactDetail from
+ *     GET /contacts/{id}.
  *
  * REAL FINDING from building this test: Expo's web dev server double-mounts
  * the screen tree in dev mode (React StrictMode double-render), leaving a
@@ -45,10 +42,13 @@ test("register -> scan -> review -> save happy path", async ({ page }) => {
   });
   await page.getByText("Don't have an account? Register").last().click();
 
-  await expect(page.getByPlaceholder("Full Name").last()).toBeVisible({ timeout: 10_000 });
-  await page.getByPlaceholder("Full Name").last().fill("E2E Test User");
-  await page.getByPlaceholder("Email").last().fill(uniqueEmail);
-  await page.getByPlaceholder("Password").last().fill(password);
+  // Register now uses labeled AppTextInputs (aria-label from label) with a
+  // confirm-password field and client-side validation.
+  await expect(page.getByLabel("Full Name").last()).toBeVisible({ timeout: 10_000 });
+  await page.getByLabel("Full Name").last().fill("E2E Test User");
+  await page.getByLabel("Email").last().fill(uniqueEmail);
+  await page.getByLabel("Password", { exact: true }).last().fill(password);
+  await page.getByLabel("Confirm Password").last().fill(password);
 
   const registerResponse = page.waitForResponse(
     (res) => res.url().includes("/auth/register") && res.request().method() === "POST"
@@ -103,10 +103,20 @@ test("register -> scan -> review -> save happy path", async ({ page }) => {
   // testID on CardScannerContactDetailsScreen's TriToggle for this.
   await expect(page.getByText("Contact Details").last()).toBeVisible({ timeout: 10_000 });
   await page.getByTestId("marketing-consent-Yes").last().click();
-  await page.getByText("Save Contact").last().click();
 
-  // --- 4. Confirm screen ----------------------------------------------------
+  // --- 4. Save is REAL now (POST /contacts, ticket #8) ---------------------
+  const createResponse = page.waitForResponse(
+    (res) => res.url().includes("/contacts") && res.request().method() === "POST"
+  );
+  await page.getByText("Save Contact").last().click();
+  const createRes = await createResponse;
+  expect(createRes.status(), "POST /contacts should persist the scanned card").toBe(201);
+
+  // Confirm screen names the saved contact; View Contact opens the real
+  // ContactDetail loaded from GET /contacts/{id}.
   await expect(page.getByText("Contact Saved").last()).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText(/Jane Smith has been added/).last()).toBeVisible();
   await page.getByText("View Contact").last().click();
-  await expect(page.getByText(/Contacts/i).last()).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText("Acme Corp").last()).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText(/Product Manager/).last()).toBeVisible();
 });

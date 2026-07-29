@@ -31,11 +31,64 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
         from platform_core.db import _ensure_pool, run_migrations
 
         from crm_api.auth import ensure_profile_table
+        from crm_api.contacts import ensure_contacts_tables
+        from crm_api.sms import ensure_sms_log_table
 
         run_migrations(db_url)
         pool = await _ensure_pool()
         await ensure_profile_table(pool)
-    yield
+        await ensure_sms_log_table(pool)
+        await ensure_contacts_tables(pool)
+
+    # Outbound notification gateways (Resend email, Semaphore SMS) share one
+    # HTTP client whose lifetime matches the app's. Unconfigured keys leave the
+    # defaults in place: log-only email, 503 from POST /sms.
+    http_client = None
+    if settings.resend_api_key or settings.semaphore_api_key:
+        import httpx
+
+        http_client = httpx.AsyncClient(timeout=15)
+    if settings.resend_api_key:
+        from platform_core.ports.email import register_email_sender
+        from platform_email.providers.resend import ResendGateway
+
+        from crm_api.notify import ResendEmailSender
+
+        register_email_sender(
+            ResendEmailSender(
+                ResendGateway(
+                    settings.resend_api_key.get_secret_value(), http_client=http_client
+                ),
+                from_addr=settings.resend_from,
+            )
+        )
+    if settings.semaphore_api_key:
+        from platform_sms.providers.semaphore import SemaphoreGateway
+
+        app.state.sms_gateway = SemaphoreGateway(
+            settings.semaphore_api_key.get_secret_value(),
+            http_client=http_client,
+            sender_name=settings.semaphore_sender_name or None,
+        )
+
+    # Card-image storage: presigned direct-to-R2 uploads (bucket crm-images).
+    if settings.r2_account_id and settings.r2_bucket and settings.r2_secret_access_key:
+        from platform_storage_r2 import R2StorageAdapter, R2StorageConfig
+
+        app.state.card_storage = R2StorageAdapter(
+            config=R2StorageConfig(
+                account_id=settings.r2_account_id,
+                bucket=settings.r2_bucket,
+                access_key_id=settings.r2_access_key_id,
+                secret_access_key=settings.r2_secret_access_key.get_secret_value(),
+            )
+        )
+
+    try:
+        yield
+    finally:
+        if http_client is not None:
+            await http_client.aclose()
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -74,6 +127,20 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     ]
     app.include_router(crm_auth_router)
     app.include_router(platform_auth_router)
+
+    from crm_api.sms import router as sms_router
+
+    app.include_router(sms_router)
+
+    from crm_api.cards import router as cards_router
+    from crm_api.contacts import router as contacts_router
+    from crm_api.dashboard import router as dashboard_router
+    from crm_api.import_export import router as import_export_router
+
+    app.include_router(contacts_router)
+    app.include_router(dashboard_router)
+    app.include_router(cards_router)
+    app.include_router(import_export_router)
 
     return app
 

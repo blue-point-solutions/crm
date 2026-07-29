@@ -9,6 +9,7 @@ export interface ContactListItem {
   phone?: string;
   leadTemperature?: "Hot" | "Warm" | "Cold";
   source?: string;
+  favorite?: boolean;
   completenessScore: number; // 0-100
   dateAdded: string;
 }
@@ -19,22 +20,49 @@ export interface ContactListParams {
   status?: string;
   source?: string;
   leadTemperature?: string;
+  favorite?: boolean;
+  sort?: "recent" | "name" | "company";
   page?: number;
+  pageSize?: number;
 }
 
 export interface ContactListResponse {
   items: ContactListItem[];
   total: number;
   page: number;
+  pageSize: number;
+  facets: { status: Record<string, number>; leadTemperature: Record<string, number> };
 }
 
 export async function listContacts(params?: ContactListParams): Promise<ContactListResponse> {
-  const { data } = await client.get<ContactListResponse>("/contacts", { params });
+  // API expects snake-ish query names for the paging params it defines.
+  const { pageSize, leadTemperature, ...rest } = params ?? {};
+  const { data } = await client.get<ContactListResponse>("/contacts", {
+    params: {
+      ...rest,
+      ...(leadTemperature ? { lead_temperature: leadTemperature } : {}),
+      ...(pageSize ? { page_size: pageSize } : {}),
+    },
+  });
   return data;
 }
 
-export async function getDashboard() {
-  const { data } = await client.get("/dashboard");
+export interface DashboardReminder {
+  contact: ContactListItem;
+  followUpDate: string;
+}
+
+export interface DashboardData {
+  totalContacts: number;
+  recent: ContactListItem[];
+  upcomingReminders: DashboardReminder[];
+  inactive30D: ContactListItem[];
+  activeDealsCount: number;
+  pipelineValue: number;
+}
+
+export async function getDashboard(): Promise<DashboardData> {
+  const { data } = await client.get<DashboardData>("/dashboard");
   return data;
 }
 
@@ -65,6 +93,8 @@ export interface ContactDetail extends ContactListItem {
   followUpDate?: string;
   activities: Activity[];
   lastActivityDate?: string;
+  /** Optimistic-lock revision — echo back in PATCH to detect stale writes. */
+  revision?: number;
 }
 
 export async function getContact(id: string): Promise<ContactDetail> {
@@ -74,6 +104,69 @@ export async function getContact(id: string): Promise<ContactDetail> {
 
 export async function updateContact(id: string, patch: Partial<ContactDetail>): Promise<ContactDetail> {
   const { data } = await client.patch<ContactDetail>(`/contacts/${id}`, patch);
+  return data;
+}
+
+export interface ContactCreate {
+  firstName?: string;
+  lastName?: string;
+  jobTitle?: string;
+  company?: string;
+  phones?: string[];
+  emails?: string[];
+  website?: string;
+  address?: string;
+  linkedin?: string;
+  facebook?: string;
+  cardImageUri?: string;
+  industry?: string;
+  source?: string;
+  tags?: string[];
+  interests?: string[];
+  status?: "Lead" | "Active" | "Inactive";
+  marketingConsent?: "Yes" | "No" | "NotAsked";
+  decisionMaker?: "Yes" | "No" | "Unknown";
+  leadTemperature?: "Hot" | "Warm" | "Cold";
+  notes?: string;
+  painPoint?: string;
+  followUpDate?: string;
+  sourceMethod?: "Card Scan" | "Manual Entry" | "CSV Import" | "Phone Import";
+}
+
+export interface ContactCreated extends ContactDetail {
+  /** Possible duplicates the server spotted — surfaced, never blocking. */
+  duplicates: ContactListItem[];
+}
+
+export async function createContact(body: ContactCreate): Promise<ContactCreated> {
+  const { data } = await client.post<ContactCreated>("/contacts", body);
+  return data;
+}
+
+export async function deleteContact(id: string): Promise<void> {
+  await client.delete(`/contacts/${id}`);
+}
+
+export async function toggleFavorite(
+  id: string
+): Promise<{ id: string; favorite: boolean; revision: number }> {
+  // revision comes back because toggling bumps the optimistic lock — callers
+  // holding the contact must merge it or their next PATCH 409s spuriously.
+  const { data } = await client.post<{ id: string; favorite: boolean; revision: number }>(
+    `/contacts/${id}/favorite`
+  );
+  return data;
+}
+
+export async function logActivity(
+  contactId: string,
+  type: Activity["type"],
+  content: string
+): Promise<Activity> {
+  const { data } = await client.post<Activity>(`/contacts/${contactId}/activity`, {
+    type,
+    content,
+  });
   return data;
 }
 

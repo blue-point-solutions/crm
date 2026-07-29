@@ -1,100 +1,109 @@
-import React, { useState, useCallback } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-  View,
+  ActivityIndicator,
+  FlatList,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
   Text,
   TextInput,
-  FlatList,
-  ScrollView,
   TouchableOpacity,
-  StyleSheet,
-  StatusBar,
+  View,
 } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { useNavigation } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
 import { RootStackParamList } from "../navigation/types";
-import { ContactListItem, MOCK_CONTACTS } from "../api/contacts";
+import {
+  ContactListItem,
+  listContacts,
+  toggleFavorite,
+} from "../api/contacts";
+import {
+  Avatar,
+  Badge,
+  EmptyState,
+  ErrorState,
+  LoadingState,
+  Screen,
+  useToast,
+} from "../components";
+import {
+  colors,
+  completenessColor,
+  LeadTemperature,
+  radius,
+  shadow,
+  spacing,
+  temperatureColor,
+  type,
+} from "../theme";
 
 type ContactsNavProp = NativeStackNavigationProp<RootStackParamList, "Contacts">;
 
-type LeadTemp = "Hot" | "Warm" | "Cold";
+/** List rows may carry a favorite flag from the API. */
+type Row = ContactListItem & { favorite?: boolean };
 
-// ─── Helpers ───────────────────────────────────────────────────────────────
+type SortMode = "recent" | "name";
+type FetchMode = "initial" | "refresh" | "silent" | "more";
 
-function initials(first: string, last: string): string {
-  return `${first.charAt(0)}${last.charAt(0)}`.toUpperCase();
-}
+const PAGE_SIZE = 20;
 
-function avatarColor(temp?: LeadTemp): string {
-  switch (temp) {
-    case "Hot":  return "#e53935";
-    case "Warm": return "#fb8c00";
-    case "Cold": return "#1e88e5";
-    default:     return "#757575";
-  }
-}
+const TEMP_BADGE_VARIANT: Record<LeadTemperature, "hot" | "warm" | "cold"> = {
+  Hot: "hot",
+  Warm: "warm",
+  Cold: "cold",
+};
 
-function badgeColor(temp?: LeadTemp): string {
-  switch (temp) {
-    case "Hot":  return "#ffebee";
-    case "Warm": return "#fff3e0";
-    case "Cold": return "#e3f2fd";
-    default:     return "#f5f5f5";
-  }
-}
-
-function badgeTextColor(temp?: LeadTemp): string {
-  switch (temp) {
-    case "Hot":  return "#c62828";
-    case "Warm": return "#e65100";
-    case "Cold": return "#1565c0";
-    default:     return "#616161";
-  }
-}
-
-function completenessBarColor(score: number): string {
-  if (score >= 80) return "#43a047";
-  if (score >= 50) return "#ffb300";
-  return "#e53935";
-}
-
-function tempLabel(temp?: LeadTemp): string {
-  switch (temp) {
-    case "Hot":  return "🔥 Hot";
-    case "Warm": return "🌡 Warm";
-    case "Cold": return "❄️ Cold";
-    default:     return "";
-  }
-}
+const TEMP_CHIP_ICON: Record<
+  LeadTemperature,
+  React.ComponentProps<typeof Ionicons>["name"]
+> = {
+  Hot: "flame",
+  Warm: "thermometer",
+  Cold: "snow",
+};
 
 // ─── ContactRow ────────────────────────────────────────────────────────────
 
 interface ContactRowProps {
-  item: ContactListItem;
+  item: Row;
   onPress: () => void;
+  onToggleFavorite: () => void;
 }
 
-function ContactRow({ item, onPress }: ContactRowProps) {
-  const temp = item.leadTemperature as LeadTemp | undefined;
-  const barColor = completenessBarColor(item.completenessScore);
+const ContactRow = React.memo(function ContactRow({
+  item,
+  onPress,
+  onToggleFavorite,
+}: ContactRowProps) {
+  const temp = item.leadTemperature;
+  const fullName = `${item.firstName} ${item.lastName}`.trim();
+  const barColor = completenessColor(item.completenessScore);
 
   return (
-    <TouchableOpacity style={styles.row} onPress={onPress} activeOpacity={0.75}>
+    <TouchableOpacity
+      style={styles.row}
+      onPress={onPress}
+      activeOpacity={0.75}
+      accessibilityRole="button"
+      accessibilityLabel={`${fullName}, ${item.company}${
+        temp ? `, ${temp} lead` : ""
+      }, ${item.completenessScore} percent complete. Opens contact details.`}
+    >
       <View style={styles.rowContent}>
-        {/* Avatar */}
-        <View style={[styles.avatar, { backgroundColor: avatarColor(temp) }]}>
-          <Text style={styles.avatarText}>
-            {initials(item.firstName, item.lastName)}
-          </Text>
-        </View>
+        <Avatar
+          name={fullName}
+          size="md"
+          color={temp ? temperatureColor(temp) : undefined}
+          style={styles.avatar}
+        />
 
         {/* Info */}
         <View style={styles.info}>
           <View style={styles.infoTop}>
             <View style={styles.infoText}>
-              <Text style={styles.name}>
-                {item.firstName} {item.lastName}
-              </Text>
+              <Text style={styles.name}>{fullName}</Text>
               <Text style={styles.company} numberOfLines={1}>
                 {item.company}
               </Text>
@@ -103,14 +112,26 @@ function ContactRow({ item, onPress }: ContactRowProps) {
               </Text>
             </View>
 
-            {/* Right column: badge + score */}
+            {/* Right column: favorite + badge + score */}
             <View style={styles.rightCol}>
+              <TouchableOpacity
+                onPress={onToggleFavorite}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityRole="button"
+                accessibilityLabel={
+                  item.favorite
+                    ? `Remove ${fullName} from favorites`
+                    : `Add ${fullName} to favorites`
+                }
+              >
+                <Ionicons
+                  name={item.favorite ? "star" : "star-outline"}
+                  size={20}
+                  color={item.favorite ? colors.warning : colors.textMuted}
+                />
+              </TouchableOpacity>
               {temp ? (
-                <View style={[styles.badge, { backgroundColor: badgeColor(temp) }]}>
-                  <Text style={[styles.badgeText, { color: badgeTextColor(temp) }]}>
-                    {tempLabel(temp)}
-                  </Text>
-                </View>
+                <Badge label={temp} variant={TEMP_BADGE_VARIANT[temp]} />
               ) : null}
               <Text style={styles.scoreText}>{item.completenessScore}%</Text>
             </View>
@@ -121,12 +142,50 @@ function ContactRow({ item, onPress }: ContactRowProps) {
             <View
               style={[
                 styles.barFill,
-                { width: `${item.completenessScore}%` as any, backgroundColor: barColor },
+                {
+                  width: `${item.completenessScore}%` as const,
+                  backgroundColor: barColor,
+                },
               ]}
             />
           </View>
         </View>
       </View>
+    </TouchableOpacity>
+  );
+});
+
+// ─── Chip ──────────────────────────────────────────────────────────────────
+
+interface ChipProps {
+  label: string;
+  icon?: React.ComponentProps<typeof Ionicons>["name"];
+  active: boolean;
+  onPress: () => void;
+  accessibilityLabel?: string;
+}
+
+function Chip({ label, icon, active, onPress, accessibilityLabel }: ChipProps) {
+  return (
+    <TouchableOpacity
+      style={[styles.chip, active && styles.chipActive]}
+      onPress={onPress}
+      activeOpacity={0.75}
+      accessibilityRole="button"
+      accessibilityState={{ selected: active }}
+      accessibilityLabel={accessibilityLabel ?? `Filter: ${label}`}
+    >
+      {icon ? (
+        <Ionicons
+          name={icon}
+          size={13}
+          color={active ? colors.white : colors.textSecondary}
+          style={styles.chipIcon}
+        />
+      ) : null}
+      <Text style={[styles.chipText, active && styles.chipTextActive]}>
+        {label}
+      </Text>
     </TouchableOpacity>
   );
 }
@@ -135,175 +194,364 @@ function ContactRow({ item, onPress }: ContactRowProps) {
 
 export default function ContactsScreen() {
   const navigation = useNavigation<ContactsNavProp>();
-  const insets = useSafeAreaInsets();
+  const toast = useToast();
 
+  // Filters
   const [query, setQuery] = useState("");
-  const [tempFilter, setTempFilter] = useState<LeadTemp | null>(null);
+  const [debouncedQ, setDebouncedQ] = useState("");
+  const [tempFilter, setTempFilter] = useState<LeadTemperature | null>(null);
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const [sort, setSort] = useState<SortMode>("recent");
+
+  // Data
+  const [items, setItems] = useState<Row[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(false);
 
-  const filtered = MOCK_CONTACTS.filter((c) => {
-    const q = query.toLowerCase();
-    const matchesQuery =
-      !q ||
-      `${c.firstName} ${c.lastName}`.toLowerCase().includes(q) ||
-      c.company.toLowerCase().includes(q) ||
-      (c.email?.toLowerCase().includes(q) ?? false);
+  /** Monotonic id so stale responses never clobber newer ones. */
+  const requestSeq = useRef(0);
 
-    const matchesTemp = !tempFilter || c.leadTemperature === tempFilter;
+  // Debounced search (350ms)
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQ(query.trim()), 350);
+    return () => clearTimeout(t);
+  }, [query]);
 
-    return matchesQuery && matchesTemp;
-  });
+  const fetchPage = useCallback(
+    async (pageNum: number, mode: FetchMode) => {
+      const id = ++requestSeq.current;
+      if (mode === "initial") {
+        setLoading(true);
+        setError(false);
+      } else if (mode === "refresh") {
+        setRefreshing(true);
+      } else if (mode === "more") {
+        setLoadingMore(true);
+      }
+
+      try {
+        const res = await listContacts({
+          q: debouncedQ || undefined,
+          leadTemperature: tempFilter ?? undefined,
+          favorite: favoritesOnly || undefined,
+          sort,
+          page: pageNum,
+          pageSize: PAGE_SIZE,
+        });
+        if (id !== requestSeq.current) return;
+        setItems((prev) =>
+          pageNum > 1 ? [...prev, ...(res.items as Row[])] : (res.items as Row[])
+        );
+        setTotal(res.total);
+        setPage(res.page);
+        setError(false);
+      } catch {
+        if (id !== requestSeq.current) return;
+        if (mode === "initial") {
+          setError(true);
+          // The full-screen ErrorState only shows when the list is empty; if
+          // stale rows from a previous filter are still on screen, say so —
+          // silently keeping them would look like correct filtered results.
+          setItems([]);
+          setTotal(0);
+        } else {
+          toast.show("Couldn't load contacts. Please try again.", "error");
+        }
+      } finally {
+        if (id === requestSeq.current) {
+          setLoading(false);
+          setRefreshing(false);
+          setLoadingMore(false);
+        }
+      }
+    },
+    [debouncedQ, tempFilter, favoritesOnly, sort, toast]
+  );
+
+  // Initial load + reload whenever a filter/sort/search changes.
+  useEffect(() => {
+    fetchPage(1, "initial");
+  }, [fetchPage]);
+
+  // Refetch on focus (e.g. returning from a save) — but not on first mount,
+  // and not tied to fetchPage identity so filter changes don't double-fetch.
+  const fetchRef = useRef(fetchPage);
+  useEffect(() => {
+    fetchRef.current = fetchPage;
+  }, [fetchPage]);
+  const firstFocus = useRef(true);
+  useFocusEffect(
+    useCallback(() => {
+      if (firstFocus.current) {
+        firstFocus.current = false;
+        return;
+      }
+      fetchRef.current(1, "silent");
+    }, [])
+  );
 
   const handleRefresh = useCallback(() => {
-    setRefreshing(true);
-    // Simulate async refresh
-    setTimeout(() => setRefreshing(false), 600);
+    fetchPage(1, "refresh");
+  }, [fetchPage]);
+
+  const handleEndReached = useCallback(() => {
+    if (loading || loadingMore || refreshing || error) return;
+    if (items.length >= total) return;
+    fetchPage(page + 1, "more");
+  }, [loading, loadingMore, refreshing, error, items.length, total, page, fetchPage]);
+
+  const handleToggleFavorite = useCallback(
+    async (id: string) => {
+      let previous: boolean | undefined;
+      setItems((prev) =>
+        prev.map((c) => {
+          if (c.id !== id) return c;
+          previous = c.favorite;
+          return { ...c, favorite: !c.favorite };
+        })
+      );
+      try {
+        const res = await toggleFavorite(id);
+        setItems((prev) =>
+          prev.map((c) => (c.id === id ? { ...c, favorite: res.favorite } : c))
+        );
+      } catch {
+        setItems((prev) =>
+          prev.map((c) => (c.id === id ? { ...c, favorite: previous } : c))
+        );
+        toast.show("Couldn't update favorite. Please try again.", "error");
+      }
+    },
+    [toast]
+  );
+
+  const hasFilters = debouncedQ !== "" || tempFilter !== null || favoritesOnly;
+
+  const clearFilters = useCallback(() => {
+    setQuery("");
+    setDebouncedQ("");
+    setTempFilter(null);
+    setFavoritesOnly(false);
   }, []);
 
-  const CHIPS: Array<{ label: string; value: LeadTemp | null }> = [
-    { label: "All", value: null },
-    { label: "🔥 Hot", value: "Hot" },
-    { label: "🌡 Warm", value: "Warm" },
-    { label: "❄️ Cold", value: "Cold" },
-  ];
+  const listEmpty = hasFilters ? (
+    <EmptyState
+      icon="search-outline"
+      title="No matching contacts"
+      message="Try a different search or clear your filters."
+      actionLabel="Clear Filters"
+      onAction={clearFilters}
+    />
+  ) : (
+    <EmptyState
+      icon="people-outline"
+      title="No contacts yet"
+      message="Scan a business card to add your first contact."
+      actionLabel="Scan Card"
+      onAction={() => navigation.navigate("CameraPermission")}
+    />
+  );
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      <StatusBar barStyle="dark-content" />
-
+    <Screen>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>Contacts</Text>
-        <View style={styles.countBadge}>
-          <Text style={styles.countText}>{filtered.length}</Text>
+        <View style={styles.countBadge} accessibilityLabel={`${total} contacts`}>
+          <Text style={styles.countText}>{total}</Text>
         </View>
+        <View style={{ flex: 1 }} />
+        <TouchableOpacity
+          onPress={() => navigation.navigate("ImportExport")}
+          accessibilityRole="button"
+          accessibilityLabel="Import and export contacts"
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Ionicons name="swap-vertical-outline" size={22} color={colors.primary} />
+        </TouchableOpacity>
       </View>
 
       {/* Search bar */}
       <View style={styles.searchBar}>
-        <Text style={styles.searchIcon}>🔍</Text>
+        <Ionicons
+          name="search"
+          size={16}
+          color={colors.textMuted}
+          style={styles.searchIcon}
+        />
         <TextInput
           style={styles.searchInput}
           placeholder="Search by name, company or email…"
-          placeholderTextColor="#9e9e9e"
+          placeholderTextColor={colors.textMuted}
           value={query}
           onChangeText={setQuery}
-          clearButtonMode="while-editing"
           autoCapitalize="none"
           autoCorrect={false}
+          returnKeyType="search"
+          accessibilityLabel="Search contacts"
         />
+        {query !== "" ? (
+          <TouchableOpacity
+            onPress={() => setQuery("")}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel="Clear search"
+          >
+            <Ionicons name="close-circle" size={16} color={colors.textMuted} />
+          </TouchableOpacity>
+        ) : null}
       </View>
 
-      {/* Filter chips */}
+      {/* Filter + sort chips */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
         style={styles.chipsScroll}
         contentContainerStyle={styles.chipsContent}
+        keyboardShouldPersistTaps="handled"
       >
-        {CHIPS.map((chip) => {
-          const active = tempFilter === chip.value;
-          return (
-            <TouchableOpacity
-              key={chip.label}
-              style={[styles.chip, active && styles.chipActive]}
-              onPress={() => setTempFilter(chip.value)}
-              activeOpacity={0.75}
-            >
-              <Text style={[styles.chipText, active && styles.chipTextActive]}>
-                {chip.label}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
+        <Chip
+          label="All"
+          active={tempFilter === null}
+          onPress={() => setTempFilter(null)}
+          accessibilityLabel="Show all temperatures"
+        />
+        {(["Hot", "Warm", "Cold"] as const).map((t) => (
+          <Chip
+            key={t}
+            label={t}
+            icon={TEMP_CHIP_ICON[t]}
+            active={tempFilter === t}
+            onPress={() => setTempFilter((cur) => (cur === t ? null : t))}
+            accessibilityLabel={`Filter by ${t} leads`}
+          />
+        ))}
+        <Chip
+          label="Favorites"
+          icon="star"
+          active={favoritesOnly}
+          onPress={() => setFavoritesOnly((f) => !f)}
+          accessibilityLabel="Show favorites only"
+        />
+        <View style={styles.chipDivider} />
+        <Chip
+          label="Recent"
+          icon="time-outline"
+          active={sort === "recent"}
+          onPress={() => setSort("recent")}
+          accessibilityLabel="Sort by most recent"
+        />
+        <Chip
+          label="Name"
+          icon="swap-vertical"
+          active={sort === "name"}
+          onPress={() => setSort("name")}
+          accessibilityLabel="Sort by name"
+        />
       </ScrollView>
 
-      {/* List */}
-      <FlatList
-        data={filtered}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
+      {/* List / states */}
+      {loading ? (
+        <LoadingState label="Loading contacts…" />
+      ) : error && items.length === 0 ? (
+        <ErrorState
+          title="Couldn't load contacts"
+          onRetry={() => fetchPage(1, "initial")}
+        />
+      ) : (
+        <FlatList
+          data={items}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
             <ContactRow
               item={item}
-              onPress={() => navigation.navigate("ContactDetail", { contactId: item.id })}
+              onPress={() =>
+                navigation.navigate("ContactDetail", { contactId: item.id })
+              }
+              onToggleFavorite={() => handleToggleFavorite(item.id)}
             />
           )}
-        refreshing={refreshing}
-        onRefresh={handleRefresh}
-        contentContainerStyle={filtered.length === 0 ? styles.emptyContainer : styles.listContent}
-        ListEmptyComponent={
-          <View style={styles.empty}>
-            <Text style={styles.emptyText}>No contacts found.</Text>
-            {(query !== "" || tempFilter !== null) && (
-              <TouchableOpacity
-                onPress={() => {
-                  setQuery("");
-                  setTempFilter(null);
-                }}
-                style={styles.clearBtn}
-              >
-                <Text style={styles.clearBtnText}>Clear filters</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        }
-      />
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              colors={[colors.primary]}
+              tintColor={colors.primary}
+            />
+          }
+          onEndReached={handleEndReached}
+          onEndReachedThreshold={0.4}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={
+            items.length === 0 ? styles.emptyContainer : styles.listContent
+          }
+          ListEmptyComponent={listEmpty}
+          ListFooterComponent={
+            loadingMore ? (
+              <View style={styles.footer}>
+                <ActivityIndicator size="small" color={colors.primary} />
+              </View>
+            ) : null
+          }
+        />
+      )}
 
       {/* FAB */}
       <TouchableOpacity
         style={styles.fab}
         onPress={() => navigation.navigate("CameraPermission")}
         activeOpacity={0.85}
+        accessibilityRole="button"
+        accessibilityLabel="Scan Card"
       >
-        <Text style={styles.fabIcon}>+</Text>
+        <Ionicons name="camera" size={26} color={colors.white} />
       </TouchableOpacity>
-    </View>
+    </Screen>
   );
 }
 
 // ─── Styles ────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#f9f9fb",
-  },
-
   // Header
   header: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 8,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.sm,
   },
   title: {
-    fontSize: 28,
+    fontSize: type.size.h1,
     fontWeight: "700",
-    fontFamily: "OmnesBold",
-    color: "#0c4aad",
+    fontFamily: type.family.bold,
+    color: colors.primary,
   },
   countBadge: {
     marginLeft: 10,
-    backgroundColor: "#0c4aad",
-    borderRadius: 12,
-    paddingHorizontal: 8,
+    backgroundColor: colors.primary,
+    borderRadius: radius.lg,
+    paddingHorizontal: spacing.sm,
     paddingVertical: 2,
     minWidth: 28,
     alignItems: "center",
   },
   countText: {
-    color: "#ffffff",
-    fontSize: 13,
+    color: colors.white,
+    fontSize: type.size.caption,
     fontWeight: "600",
-    fontFamily: "OmnesSemiBold",
+    fontFamily: type.family.semiBold,
   },
 
   // Search
   searchBar: {
     flexDirection: "row",
     alignItems: "center",
-    marginHorizontal: 16,
+    marginHorizontal: spacing.lg,
     marginBottom: 10,
     backgroundColor: "#ebebef",
     borderRadius: 10,
@@ -311,13 +559,12 @@ const styles = StyleSheet.create({
     height: 40,
   },
   searchIcon: {
-    fontSize: 16,
     marginRight: 6,
   },
   searchInput: {
     flex: 1,
     fontSize: 15,
-    color: "#0c4aad",
+    color: colors.primary,
   },
 
   // Chips
@@ -326,70 +573,68 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   chipsContent: {
-    paddingHorizontal: 12,
-    gap: 8,
+    paddingHorizontal: spacing.md,
+    gap: spacing.sm,
+    alignItems: "center",
   },
   chip: {
-    borderRadius: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: radius.full,
     paddingHorizontal: 14,
     paddingVertical: 6,
     backgroundColor: "#e0e0e0",
   },
   chipActive: {
-    backgroundColor: "#0c4aad",
+    backgroundColor: colors.primary,
+  },
+  chipIcon: {
+    marginRight: spacing.xs,
   },
   chipText: {
-    fontSize: 13,
+    fontSize: type.size.caption,
     fontWeight: "500",
+    fontFamily: type.family.medium,
     color: "#424242",
   },
   chipTextActive: {
-    color: "#ffffff",
+    color: colors.white,
+  },
+  chipDivider: {
+    width: 1,
+    height: 20,
+    backgroundColor: colors.border,
   },
 
   // List
   listContent: {
-    paddingHorizontal: 12,
+    paddingHorizontal: spacing.md,
     paddingBottom: 100,
   },
   emptyContainer: {
-    flex: 1,
+    flexGrow: 1,
     justifyContent: "center",
+  },
+  footer: {
+    paddingVertical: spacing.lg,
     alignItems: "center",
   },
 
   // Row
   row: {
-    backgroundColor: "#ffffff",
-    borderRadius: 12,
-    marginVertical: 4,
-    padding: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 3,
-    elevation: 2,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    marginVertical: spacing.xs,
+    padding: spacing.md,
+    ...shadow.card,
   },
   rowContent: {
     flexDirection: "row",
     alignItems: "flex-start",
   },
-
-  // Avatar
   avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 12,
+    marginRight: spacing.md,
     flexShrink: 0,
-  },
-  avatarText: {
-    color: "#ffffff",
-    fontWeight: "700",
-    fontFamily: "OmnesBold",
-    fontSize: 16,
   },
 
   // Info
@@ -400,50 +645,40 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   infoText: {
     flex: 1,
-    marginRight: 8,
+    marginRight: spacing.sm,
   },
   name: {
     fontSize: 15,
     fontWeight: "700",
-    fontFamily: "OmnesBold",
-    color: "#0c4aad",
+    fontFamily: type.family.bold,
+    color: colors.primary,
     marginBottom: 2,
   },
   company: {
-    fontSize: 13,
-    color: "#757575",
+    fontSize: type.size.caption,
+    color: colors.neutral,
     marginBottom: 2,
   },
   email: {
     fontSize: 12,
-    color: "#9e9e9e",
+    color: colors.textMuted,
     fontStyle: "italic",
   },
 
   // Right column
   rightCol: {
     alignItems: "flex-end",
-    gap: 4,
-  },
-  badge: {
-    borderRadius: 20,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  badgeText: {
-    fontSize: 11,
-    fontWeight: "600",
-    fontFamily: "OmnesSemiBold",
+    gap: spacing.xs,
   },
   scoreText: {
-    fontSize: 11,
+    fontSize: type.size.tiny,
     fontWeight: "600",
-    fontFamily: "OmnesSemiBold",
-    color: "#757575",
+    fontFamily: type.family.semiBold,
+    color: colors.neutral,
   },
 
   // Completeness bar
@@ -458,30 +693,6 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
 
-  // Empty state
-  empty: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 60,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: "#9e9e9e",
-    marginBottom: 16,
-  },
-  clearBtn: {
-    backgroundColor: "#0c4aad",
-    borderRadius: 20,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-  },
-  clearBtnText: {
-    color: "#ffffff",
-    fontWeight: "600",
-    fontFamily: "OmnesSemiBold",
-    fontSize: 14,
-  },
-
   // FAB
   fab: {
     position: "absolute",
@@ -490,7 +701,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: "#0c4aad",
+    backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#000",
@@ -498,11 +709,5 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 6,
     elevation: 6,
-  },
-  fabIcon: {
-    color: "#ffffff",
-    fontSize: 28,
-    lineHeight: 32,
-    fontWeight: "300",
   },
 });
