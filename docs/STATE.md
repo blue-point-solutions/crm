@@ -113,3 +113,17 @@ APK distribution + in-app self-update (2026-07-28).
 - None mechanical. Human gates in HUMAN-QUEUE.md: token expiry 2026-08-25,
   release keystore, Semaphore sender name, kvm group, v3 device test,
   erp access/CI billing, grocery hostname.
+
+## 2026-07-29 session close
+- PR #57 squash-merged to main after agent code review (8 findings fixed —
+  incl. single-flight token refresh; the concurrent-401 race would have
+  tripped platform-core replay detection and revoked all sessions).
+  Post-fix gates: api pytest 42/42 + mypy strict + ruff; mobile tsc + jest
+  32/32; Playwright happy path green vs real local backend. Live prod
+  verified: favorite returns revision, PATCH null → 422, import/export
+  round-trip, R2 presign→PUT→public 200.
+- v1.1.0 (versionCode 3) published: update.json + app-v3.apk on
+  apk.bpconnect.app, sha256 verified post-upload (72fa8291…),
+  mandatory=false. Emulator smoke test NOT possible on this machine (no KVM
+  — HUMAN-QUEUE §4); APK statically verified (launchable MainActivity, R8
+  dex, JS bundle, ML Kit libs). On-device verification = HUMAN-QUEUE §5.
