@@ -30,3 +30,6 @@ export type { ToastVariant } from "./Toast";
 
 export { default as ConfirmSheet } from "./ConfirmSheet";
 export type { ConfirmSheetProps } from "./ConfirmSheet";
+
+export { default as DateField } from "./DateField";
+export type { DateFieldProps } from "./DateField";

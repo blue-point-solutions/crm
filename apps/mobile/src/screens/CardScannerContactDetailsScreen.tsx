@@ -12,6 +12,7 @@ import {
 import { createContact } from "../api/contacts";
 import { uploadCardImage } from "../api/cards";
 import { deleteCardImage } from "../utils/cardImage";
+import { DateField } from "../components";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/types";
@@ -289,16 +290,12 @@ export default function CardScannerContactDetailsScreen({ navigation, route }: P
       </View>
 
       {/* Follow-up Reminder */}
-      <View style={fieldStyles.wrapper}>
-        <Text style={fieldStyles.label}>Follow-up Reminder</Text>
-        <TextInput
-          style={fieldStyles.input}
-          value={draft.followUpDate ?? ""}
-          onChangeText={(v) => update("followUpDate", v || undefined)}
-          placeholder="YYYY-MM-DD"
-          placeholderTextColor="#aaa"
-        />
-      </View>
+      <DateField
+        label="Follow-up Reminder"
+        value={draft.followUpDate}
+        onChange={(iso) => update("followUpDate", iso)}
+        minimumDate={new Date()}
+      />
 
       {/* Bottom actions */}
       <View style={styles.actions}>

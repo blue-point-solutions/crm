@@ -1,10 +1,9 @@
-import React, { useState, useLayoutEffect } from "react";
+import React, { useCallback, useLayoutEffect, useRef, useState } from "react";
 import {
   SafeAreaView,
   ScrollView,
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
   Linking,
@@ -13,43 +12,64 @@ import {
   Alert,
 } from "react-native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
+import {
+  RouteProp,
+  useFocusEffect,
+  useNavigation,
+  useRoute,
+} from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
+import axios from "axios";
 import { RootStackParamList } from "../navigation/types";
-import { ContactDetail, Activity, getMockContactDetail, updateContact } from "../api/contacts";
+import {
+  Activity,
+  ContactDetail,
+  deleteContact,
+  getContact,
+  logActivity,
+  toggleFavorite,
+  updateContact,
+} from "../api/contacts";
+import {
+  AppButton,
+  AppTextInput,
+  Avatar,
+  Badge,
+  BadgeVariant,
+  ConfirmSheet,
+  ErrorState,
+  LoadingState,
+  useToast,
+} from "../components";
+import {
+  colors,
+  completenessColor,
+  radius,
+  shadow,
+  spacing,
+  temperatureColor,
+  type,
+} from "../theme";
 
 type ContactDetailNavProp = NativeStackNavigationProp<RootStackParamList, "ContactDetail">;
 type ContactDetailRouteProp = RouteProp<RootStackParamList, "ContactDetail">;
 
+type IoniconName = React.ComponentProps<typeof Ionicons>["name"];
+
+/**
+ * The API returns the full detail including optimistic-concurrency `revision`
+ * and the `favorite` flag; the shared type doesn't declare them yet.
+ */
+type Detail = ContactDetail & { revision?: number; favorite?: boolean };
+
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
-type LeadTemp = "Hot" | "Warm" | "Cold";
+const FOLLOW_UP_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-function initials(first: string, last: string): string {
-  return `${first.charAt(0)}${last.charAt(0)}`.toUpperCase();
-}
-
-function avatarColor(temp?: string): string {
-  switch (temp) {
-    case "Hot":  return "#e53935";
-    case "Warm": return "#fb8c00";
-    case "Cold": return "#1e88e5";
-    default:     return "#757575";
-  }
-}
-
-function tempLabel(temp?: string): string {
-  switch (temp) {
-    case "Hot":  return "🔥 Hot";
-    case "Warm": return "🌡 Warm";
-    case "Cold": return "❄️ Cold";
-    default:     return "—";
-  }
-}
-
-function completenessBarColor(score: number): string {
-  if (score >= 80) return "#43a047";
-  if (score >= 50) return "#ffb300";
-  return "#e53935";
+function isValidFollowUpDate(value: string): boolean {
+  if (!FOLLOW_UP_RE.test(value)) return false;
+  const d = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === value;
 }
 
 function formatDate(iso: string): string {
@@ -64,28 +84,52 @@ function formatDate(iso: string): string {
   }
 }
 
-function activityIcon(type: Activity["type"]): string {
-  switch (type) {
-    case "call":    return "📞";
-    case "email":   return "✉️";
-    case "meeting": return "🤝";
-    case "note":
-    default:        return "📝";
+const ACTIVITY_ICON: Record<Activity["type"], IoniconName> = {
+  call: "call-outline",
+  email: "mail-outline",
+  meeting: "people-outline",
+  note: "document-text-outline",
+};
+
+const ACTIVITY_TYPES: Activity["type"][] = ["note", "call", "email", "meeting"];
+
+function statusVariant(status: ContactDetail["status"]): BadgeVariant {
+  switch (status) {
+    case "Active":
+      return "success";
+    case "Lead":
+      return "warning";
+    default:
+      return "error";
+  }
+}
+
+function temperatureVariant(t?: ContactDetail["leadTemperature"]): BadgeVariant {
+  switch (t) {
+    case "Hot":
+      return "hot";
+    case "Warm":
+      return "warm";
+    case "Cold":
+      return "cold";
+    default:
+      return "default";
   }
 }
 
 function consentColor(consent: ContactDetail["marketingConsent"]): string {
   switch (consent) {
-    case "Yes": return "#43a047";
-    case "No":  return "#e53935";
-    default:    return "#9e9e9e";
+    case "Yes":
+      return colors.success;
+    case "No":
+      return colors.hot;
+    default:
+      return colors.textMuted;
   }
 }
 
 function openUrl(url: string) {
-  Linking.openURL(url).catch(() =>
-    Alert.alert("Cannot open link", url)
-  );
+  Linking.openURL(url).catch(() => Alert.alert("Cannot open link", url));
 }
 
 // ─── Sub-components ────────────────────────────────────────────────────────
@@ -104,7 +148,11 @@ function InfoRow({ label, value, onPress }: { label: string; value: string; onPr
     <View style={styles.infoRow}>
       <Text style={styles.infoLabel}>{label}</Text>
       {onPress ? (
-        <TouchableOpacity onPress={onPress}>
+        <TouchableOpacity
+          onPress={onPress}
+          accessibilityRole="link"
+          accessibilityLabel={`${label}: ${value}`}
+        >
           <Text style={[styles.infoValue, styles.link]}>{value}</Text>
         </TouchableOpacity>
       ) : (
@@ -114,11 +162,27 @@ function InfoRow({ label, value, onPress }: { label: string; value: string; onPr
   );
 }
 
-function Chip({ label, color }: { label: string; color?: string }) {
+function QuickAction({
+  icon,
+  label,
+  onPress,
+}: {
+  icon: IoniconName;
+  label: string;
+  onPress: () => void;
+}) {
   return (
-    <View style={[styles.chip, color ? { backgroundColor: color } : {}]}>
-      <Text style={styles.chipText}>{label}</Text>
-    </View>
+    <TouchableOpacity
+      style={styles.actionBtn}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+    >
+      <View style={styles.actionIconCircle}>
+        <Ionicons name={icon} size={22} color={colors.primary} />
+      </View>
+      <Text style={styles.actionLabel}>{label}</Text>
+    </TouchableOpacity>
   );
 }
 
@@ -128,156 +192,300 @@ export default function ContactDetailScreen() {
   const navigation = useNavigation<ContactDetailNavProp>();
   const route = useRoute<ContactDetailRouteProp>();
   const { contactId } = route.params;
+  const toast = useToast();
 
-  const [contact, setContact] = useState<ContactDetail>(() =>
-    getMockContactDetail(contactId)
-  );
+  const [contact, setContact] = useState<Detail | null>(null);
+  const [loadError, setLoadError] = useState(false);
   const [editMode, setEditMode] = useState(false);
-  const [draftNotes, setDraftNotes] = useState(contact.notes);
-  const [draftPainPoint, setDraftPainPoint] = useState(contact.painPoint);
+  const [saving, setSaving] = useState(false);
+  const [draftNotes, setDraftNotes] = useState("");
+  const [draftPainPoint, setDraftPainPoint] = useState("");
+  const [draftFollowUp, setDraftFollowUp] = useState("");
   const [cardModalVisible, setCardModalVisible] = useState(false);
+  const [confirmDeleteVisible, setConfirmDeleteVisible] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [composerOpen, setComposerOpen] = useState(false);
+  const [activityType, setActivityType] = useState<Activity["type"]>("note");
+  const [activityText, setActivityText] = useState("");
+  const [loggingActivity, setLoggingActivity] = useState(false);
 
-  // Configure nav header edit button
+  const hasLoadedRef = useRef(false);
+
+  const fetchContact = useCallback(async (): Promise<Detail | null> => {
+    try {
+      const data = (await getContact(contactId)) as Detail;
+      setContact(data);
+      setLoadError(false);
+      hasLoadedRef.current = true;
+      return data;
+    } catch {
+      if (!hasLoadedRef.current) setLoadError(true);
+      return null;
+    }
+  }, [contactId]);
+
+  // Fetch on focus. useFocusEffect also fires on mount, so this is the single
+  // fetch path — no separate mount effect, hence no double-fetch.
+  useFocusEffect(
+    useCallback(() => {
+      fetchContact();
+    }, [fetchContact])
+  );
+
+  function enterEditMode(c: Detail) {
+    setDraftNotes(c.notes ?? "");
+    setDraftPainPoint(c.painPoint ?? "");
+    setDraftFollowUp(c.followUpDate ?? "");
+    setEditMode(true);
+  }
+
+  async function handleToggleFavorite() {
+    if (!contact) return;
+    const previous = contact.favorite ?? false;
+    setContact((prev) => (prev ? { ...prev, favorite: !previous } : prev));
+    try {
+      const { favorite } = await toggleFavorite(contactId);
+      setContact((prev) => (prev ? { ...prev, favorite } : prev));
+    } catch {
+      setContact((prev) => (prev ? { ...prev, favorite: previous } : prev));
+      toast.show("Could not update favorite", "error");
+    }
+  }
+
+  // Configure nav header: favorite star, edit, delete.
   useLayoutEffect(() => {
     navigation.setOptions({
       headerShown: true,
       headerTitle: "",
       headerBackTitle: "Contacts",
-      headerRight: () => (
-        editMode ? null : (
-          <TouchableOpacity onPress={() => {
-            setDraftNotes(contact.notes);
-            setDraftPainPoint(contact.painPoint);
-            setEditMode(true);
-          }}>
-            <Text style={styles.navBtn}>Edit</Text>
-          </TouchableOpacity>
-        )
-      ),
+      headerRight: () =>
+        contact && !editMode ? (
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              onPress={handleToggleFavorite}
+              accessibilityRole="button"
+              accessibilityLabel={
+                contact.favorite ? "Remove from favorites" : "Add to favorites"
+              }
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons
+                name={contact.favorite ? "star" : "star-outline"}
+                size={24}
+                color={contact.favorite ? colors.warning : colors.primary}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => enterEditMode(contact)}
+              accessibilityRole="button"
+              accessibilityLabel="Edit contact"
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="create-outline" size={24} color={colors.primary} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => setConfirmDeleteVisible(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Delete contact"
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="trash-outline" size={24} color={colors.error} />
+            </TouchableOpacity>
+          </View>
+        ) : null,
     });
-  }, [navigation, editMode, contact.notes, contact.painPoint]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [navigation, editMode, contact]);
 
   async function handleSave() {
+    if (!contact || saving) return;
+
+    const trimmedFollowUp = draftFollowUp.trim();
+    if (trimmedFollowUp && !isValidFollowUpDate(trimmedFollowUp)) {
+      toast.show("Follow-up date must be YYYY-MM-DD", "error");
+      return;
+    }
+
+    // Only send fields that actually changed, plus the current revision so
+    // the server can detect stale writes (409).
+    const patch: Record<string, unknown> = {};
+    if (draftNotes !== (contact.notes ?? "")) patch.notes = draftNotes;
+    if (draftPainPoint !== (contact.painPoint ?? "")) patch.painPoint = draftPainPoint;
+    if (trimmedFollowUp !== (contact.followUpDate ?? "")) {
+      patch.followUpDate = trimmedFollowUp || null;
+    }
+
+    if (Object.keys(patch).length === 0) {
+      setEditMode(false);
+      return;
+    }
+    patch.revision = contact.revision;
+
+    setSaving(true);
     try {
-      // Against mock — updateContact will fail (no real server), so we update local state directly
-      const updated: ContactDetail = {
-        ...contact,
-        notes: draftNotes,
-        painPoint: draftPainPoint,
-      };
+      const updated = (await updateContact(contactId, patch as Partial<ContactDetail>)) as Detail;
       setContact(updated);
       setEditMode(false);
-    } catch {
-      // In a real app we'd handle the error; for now just exit edit mode
-      setContact((prev) => ({ ...prev, notes: draftNotes, painPoint: draftPainPoint }));
-      setEditMode(false);
+      toast.show("Contact saved", "success");
+    } catch (err) {
+      if (axios.isAxiosError(err) && err.response?.status === 409) {
+        toast.show("Contact changed elsewhere — reloaded", "error");
+        setEditMode(false);
+        fetchContact();
+      } else {
+        toast.show("Could not save contact", "error");
+      }
+    } finally {
+      setSaving(false);
     }
   }
 
   function handleCancel() {
+    if (!contact) return;
     const hasChanges =
-      draftNotes !== contact.notes || draftPainPoint !== contact.painPoint;
+      draftNotes !== (contact.notes ?? "") ||
+      draftPainPoint !== (contact.painPoint ?? "") ||
+      draftFollowUp.trim() !== (contact.followUpDate ?? "");
     if (hasChanges) {
-      Alert.alert(
-        "Discard Changes?",
-        "Your edits will not be saved.",
-        [
-          { text: "Keep Editing", style: "cancel" },
-          {
-            text: "Discard",
-            style: "destructive",
-            onPress: () => {
-              setDraftNotes(contact.notes);
-              setDraftPainPoint(contact.painPoint);
-              setEditMode(false);
-            },
-          },
-        ]
-      );
+      Alert.alert("Discard Changes?", "Your edits will not be saved.", [
+        { text: "Keep Editing", style: "cancel" },
+        {
+          text: "Discard",
+          style: "destructive",
+          onPress: () => setEditMode(false),
+        },
+      ]);
     } else {
       setEditMode(false);
     }
   }
 
-  const avatarBg = avatarColor(contact.leadTemperature);
-  const barColor = completenessBarColor(contact.completenessScore);
+  async function handleDelete() {
+    if (deleting) return;
+    setDeleting(true);
+    try {
+      await deleteContact(contactId);
+      setConfirmDeleteVisible(false);
+      toast.show("Contact deleted", "success");
+      navigation.goBack();
+    } catch {
+      toast.show("Could not delete contact", "error");
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  async function handleLogActivity() {
+    const content = activityText.trim();
+    if (!content) {
+      toast.show("Enter some activity details first", "error");
+      return;
+    }
+    setLoggingActivity(true);
+    try {
+      await logActivity(contactId, activityType, content);
+      // Refresh so the timeline and lastActivityDate reflect the server state.
+      await fetchContact();
+      setActivityText("");
+      setComposerOpen(false);
+      toast.show("Activity logged", "success");
+    } catch {
+      toast.show("Could not log activity", "error");
+    } finally {
+      setLoggingActivity(false);
+    }
+  }
+
+  // ── Loading / error states ────────────────────────────────────────────────
+  if (!contact) {
+    return (
+      <SafeAreaView style={styles.container}>
+        {loadError ? (
+          <ErrorState
+            title="Could not load contact"
+            onRetry={() => {
+              setLoadError(false);
+              fetchContact();
+            }}
+          />
+        ) : (
+          <LoadingState label="Loading contact…" />
+        )}
+      </SafeAreaView>
+    );
+  }
+
+  const fullName = `${contact.firstName} ${contact.lastName}`.trim();
+  const barColor = completenessColor(contact.completenessScore);
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
         {/* ── Header section ─────────────────────────────────────────────── */}
         <View style={styles.headerSection}>
-          {/* Large initials circle */}
-          <View style={[styles.avatarLarge, { backgroundColor: avatarBg }]}>
-            <Text style={styles.avatarLargeText}>
-              {initials(contact.firstName, contact.lastName)}
-            </Text>
-          </View>
+          <Avatar
+            name={fullName}
+            size="lg"
+            color={temperatureColor(contact.leadTemperature)}
+            style={styles.avatar}
+          />
 
-          {/* Name */}
-          <Text style={styles.fullName}>{contact.firstName} {contact.lastName}</Text>
+          <Text style={styles.fullName}>{fullName}</Text>
 
-          {/* Job title + company */}
           {(contact.jobTitle || contact.company) ? (
             <Text style={styles.subtitle}>
               {[contact.jobTitle, contact.company].filter(Boolean).join(" · ")}
             </Text>
           ) : null}
 
-          {/* Completeness score badge */}
           <View style={[styles.completenessContainer, { borderColor: barColor }]}>
             <Text style={[styles.completenessText, { color: barColor }]}>
               Profile {contact.completenessScore}% complete
             </Text>
           </View>
 
-          {/* Action row */}
+          {/* Quick actions */}
           <View style={styles.actionRow}>
             {contact.phones.length > 0 && (
-              <TouchableOpacity
-                style={styles.actionBtn}
+              <QuickAction
+                icon="call-outline"
+                label="Call"
                 onPress={() => openUrl(`tel:${contact.phones[0]}`)}
-              >
-                <Text style={styles.actionIcon}>📞</Text>
-                <Text style={styles.actionLabel}>Call</Text>
-              </TouchableOpacity>
+              />
             )}
             {contact.emails.length > 0 && (
-              <TouchableOpacity
-                style={styles.actionBtn}
+              <QuickAction
+                icon="mail-outline"
+                label="Email"
                 onPress={() => openUrl(`mailto:${contact.emails[0]}`)}
-              >
-                <Text style={styles.actionIcon}>✉️</Text>
-                <Text style={styles.actionLabel}>Email</Text>
-              </TouchableOpacity>
+              />
             )}
             {contact.phones.length > 0 && (
-              <TouchableOpacity
-                style={styles.actionBtn}
+              <QuickAction
+                icon="chatbubble-outline"
+                label="SMS"
                 onPress={() => openUrl(`sms:${contact.phones[0]}`)}
-              >
-                <Text style={styles.actionIcon}>💭</Text>
-                <Text style={styles.actionLabel}>SMS</Text>
-              </TouchableOpacity>
+              />
             )}
             {contact.phones.length > 0 && (
-              <TouchableOpacity
-                style={styles.actionBtn}
-                onPress={() => openUrl(`https://wa.me/${contact.phones[0].replace(/\D/g, "")}`)}
-              >
-                <Text style={styles.actionIcon}>💬</Text>
-                <Text style={styles.actionLabel}>WhatsApp</Text>
-              </TouchableOpacity>
+              <QuickAction
+                icon="logo-whatsapp"
+                label="WhatsApp"
+                onPress={() =>
+                  openUrl(`https://wa.me/${contact.phones[0].replace(/\D/g, "")}`)
+                }
+              />
             )}
             {contact.linkedin ? (
-              <TouchableOpacity
-                style={styles.actionBtn}
-                onPress={() => contact.linkedin && openUrl(contact.linkedin)}
-              >
-                <Text style={styles.actionIcon}>🔗</Text>
-                <Text style={styles.actionLabel}>LinkedIn</Text>
-              </TouchableOpacity>
+              <QuickAction
+                icon="logo-linkedin"
+                label="LinkedIn"
+                onPress={() => openUrl(contact.linkedin)}
+              />
             ) : null}
           </View>
         </View>
@@ -305,8 +513,9 @@ export default function ContactDetailScreen() {
             ))
           ) : (
             <View style={styles.amberBox}>
+              <Ionicons name="warning-outline" size={16} color={colors.warmDark} />
               <Text style={styles.amberText}>
-                ⚠️ No email — this contact cannot receive campaigns
+                No email — this contact cannot receive campaigns
               </Text>
             </View>
           )}
@@ -319,9 +528,7 @@ export default function ContactDetailScreen() {
             />
           ) : null}
 
-          {contact.address ? (
-            <InfoRow label="Address" value={contact.address} />
-          ) : null}
+          {contact.address ? <InfoRow label="Address" value={contact.address} /> : null}
 
           {contact.linkedin ? (
             <InfoRow
@@ -343,20 +550,25 @@ export default function ContactDetailScreen() {
         {/* ── CRM Details ─────────────────────────────────────────────────── */}
         <SectionHeader title="CRM Details" />
         <View style={styles.card}>
-          {/* Badges row */}
           <View style={styles.badgeRow}>
-            {contact.source ? <Chip label={contact.source} color="#e3f2fd" /> : null}
-            <Chip
-              label={contact.status}
-              color={contact.status === "Active" ? "#e8f5e9" : contact.status === "Lead" ? "#fff8e1" : "#fce4ec"}
-            />
-            <Chip label={tempLabel(contact.leadTemperature)} color="#f3e5f5" />
+            {contact.source ? <Badge label={contact.source} variant="primary" /> : null}
+            <Badge label={contact.status} variant={statusVariant(contact.status)} />
+            {contact.leadTemperature ? (
+              <Badge
+                label={contact.leadTemperature}
+                variant={temperatureVariant(contact.leadTemperature)}
+              />
+            ) : null}
           </View>
 
-          {/* Marketing consent */}
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Marketing Consent</Text>
-            <View style={[styles.consentDot, { backgroundColor: consentColor(contact.marketingConsent) }]} />
+            <View
+              style={[
+                styles.consentDot,
+                { backgroundColor: consentColor(contact.marketingConsent) },
+              ]}
+            />
             <Text style={[styles.infoValue, { color: consentColor(contact.marketingConsent) }]}>
               {contact.marketingConsent}
             </Text>
@@ -364,22 +576,24 @@ export default function ContactDetailScreen() {
 
           <InfoRow label="Decision Maker" value={contact.decisionMaker} />
 
-          {/* Tags */}
           {contact.tags.length > 0 && (
             <View style={styles.chipsSection}>
               <Text style={styles.infoLabel}>Tags</Text>
               <View style={styles.chipsRow}>
-                {contact.tags.map((t) => <Chip key={t} label={t} />)}
+                {contact.tags.map((t) => (
+                  <Badge key={t} label={t} />
+                ))}
               </View>
             </View>
           )}
 
-          {/* Interests */}
           {contact.interests.length > 0 && (
             <View style={styles.chipsSection}>
               <Text style={styles.infoLabel}>Interests</Text>
               <View style={styles.chipsRow}>
-                {contact.interests.map((i) => <Chip key={i} label={i} color="#e8f5e9" />)}
+                {contact.interests.map((i) => (
+                  <Badge key={i} label={i} variant="success" />
+                ))}
               </View>
             </View>
           )}
@@ -388,53 +602,71 @@ export default function ContactDetailScreen() {
         {/* ── Notes & Pain Point ──────────────────────────────────────────── */}
         <SectionHeader title="Notes & Pain Point" />
         <View style={styles.card}>
-          <Text style={styles.infoLabel}>Pain Point</Text>
           {editMode ? (
-            <TextInput
-              style={styles.textArea}
-              value={draftPainPoint}
-              onChangeText={setDraftPainPoint}
-              multiline
-              placeholder="Enter pain point…"
-              placeholderTextColor="#9e9e9e"
-            />
+            <>
+              <AppTextInput
+                label="Pain Point"
+                value={draftPainPoint}
+                onChangeText={setDraftPainPoint}
+                multiline
+                placeholder="Enter pain point…"
+                style={styles.textArea}
+                accessibilityLabel="Pain point"
+              />
+              <AppTextInput
+                label="Notes"
+                value={draftNotes}
+                onChangeText={setDraftNotes}
+                multiline
+                placeholder="Enter notes…"
+                style={styles.textArea}
+                accessibilityLabel="Notes"
+              />
+              <AppTextInput
+                label="Follow-up date (YYYY-MM-DD)"
+                value={draftFollowUp}
+                onChangeText={setDraftFollowUp}
+                placeholder="YYYY-MM-DD"
+                autoCapitalize="none"
+                autoCorrect={false}
+                accessibilityLabel="Follow-up date"
+              />
+              <View style={styles.editActions}>
+                <AppButton
+                  title="Save"
+                  onPress={handleSave}
+                  loading={saving}
+                  style={styles.editActionBtn}
+                  accessibilityLabel="Save contact changes"
+                />
+                <AppButton
+                  title="Cancel"
+                  onPress={handleCancel}
+                  variant="secondary"
+                  disabled={saving}
+                  style={styles.editActionBtn}
+                  accessibilityLabel="Cancel editing"
+                />
+              </View>
+            </>
           ) : (
-            <Text style={styles.painPointText}>{contact.painPoint || "—"}</Text>
-          )}
+            <>
+              <Text style={styles.infoLabel}>Pain Point</Text>
+              <Text style={styles.painPointText}>{contact.painPoint || "—"}</Text>
 
-          <View style={styles.noteSpacer} />
+              <View style={styles.noteSpacer} />
 
-          <Text style={styles.infoLabel}>Notes</Text>
-          {editMode ? (
-            <TextInput
-              style={styles.textArea}
-              value={draftNotes}
-              onChangeText={setDraftNotes}
-              multiline
-              placeholder="Enter notes…"
-              placeholderTextColor="#9e9e9e"
-            />
-          ) : (
-            <Text style={styles.notesText}>{contact.notes || "—"}</Text>
-          )}
+              <Text style={styles.infoLabel}>Notes</Text>
+              <Text style={styles.notesText}>{contact.notes || "—"}</Text>
 
-          {contact.followUpDate && (
-            <View style={styles.followUpRow}>
-              <Text style={styles.infoLabel}>Follow-up</Text>
-              <Text style={styles.followUpDate}>📅 {formatDate(contact.followUpDate)}</Text>
-            </View>
-          )}
-
-          {/* Edit mode action buttons */}
-          {editMode && (
-            <View style={styles.editActions}>
-              <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
-                <Text style={styles.saveBtnText}>Save</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.cancelBtn} onPress={handleCancel}>
-                <Text style={styles.cancelBtnText}>Cancel</Text>
-              </TouchableOpacity>
-            </View>
+              {contact.followUpDate ? (
+                <View style={styles.followUpRow}>
+                  <Text style={styles.infoLabel}>Follow-up</Text>
+                  <Ionicons name="calendar-outline" size={16} color={colors.primary} />
+                  <Text style={styles.followUpDate}>{formatDate(contact.followUpDate)}</Text>
+                </View>
+              ) : null}
+            </>
           )}
         </View>
 
@@ -442,7 +674,11 @@ export default function ContactDetailScreen() {
         <SectionHeader title="Scanned Card" />
         <View style={styles.card}>
           {contact.cardImageUri ? (
-            <TouchableOpacity onPress={() => setCardModalVisible(true)}>
+            <TouchableOpacity
+              onPress={() => setCardModalVisible(true)}
+              accessibilityRole="imagebutton"
+              accessibilityLabel="View scanned card full screen"
+            >
               <Image
                 source={{ uri: contact.cardImageUri }}
                 style={styles.cardThumb}
@@ -461,8 +697,16 @@ export default function ContactDetailScreen() {
             <Text style={styles.emptyActivity}>No activity logged yet</Text>
           ) : (
             contact.activities.map((act, idx) => (
-              <View key={act.id} style={[styles.activityItem, idx < contact.activities.length - 1 && styles.activityBorder]}>
-                <Text style={styles.activityIcon}>{activityIcon(act.type)}</Text>
+              <View
+                key={act.id}
+                style={[
+                  styles.activityItem,
+                  idx < contact.activities.length - 1 && styles.activityBorder,
+                ]}
+              >
+                <View style={styles.activityIconWrap}>
+                  <Ionicons name={ACTIVITY_ICON[act.type]} size={18} color={colors.primary} />
+                </View>
                 <View style={styles.activityBody}>
                   <Text style={styles.activityContent}>{act.content}</Text>
                   <Text style={styles.activityDate}>{formatDate(act.createdAt)}</Text>
@@ -471,24 +715,91 @@ export default function ContactDetailScreen() {
             ))
           )}
 
-          <TouchableOpacity
-            style={styles.logActivityBtn}
-            onPress={() => Alert.alert("Coming Soon", "Activity logging will be available in a future release.")}
-          >
-            <Text style={styles.logActivityBtnText}>+ Log Activity</Text>
-          </TouchableOpacity>
+          {composerOpen ? (
+            <View style={styles.composer}>
+              <View style={styles.typeChipsRow}>
+                {ACTIVITY_TYPES.map((t) => {
+                  const selected = activityType === t;
+                  return (
+                    <TouchableOpacity
+                      key={t}
+                      style={[styles.typeChip, selected && styles.typeChipSelected]}
+                      onPress={() => setActivityType(t)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Activity type ${t}`}
+                      accessibilityState={{ selected }}
+                    >
+                      <Ionicons
+                        name={ACTIVITY_ICON[t]}
+                        size={14}
+                        color={selected ? colors.white : colors.primary}
+                      />
+                      <Text
+                        style={[styles.typeChipText, selected && styles.typeChipTextSelected]}
+                      >
+                        {t.charAt(0).toUpperCase() + t.slice(1)}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+              <AppTextInput
+                value={activityText}
+                onChangeText={setActivityText}
+                multiline
+                placeholder="What happened?"
+                style={styles.textArea}
+                accessibilityLabel="Activity details"
+              />
+              <View style={styles.editActions}>
+                <AppButton
+                  title="Save Activity"
+                  onPress={handleLogActivity}
+                  loading={loggingActivity}
+                  style={styles.editActionBtn}
+                  accessibilityLabel="Save activity"
+                />
+                <AppButton
+                  title="Cancel"
+                  onPress={() => {
+                    setComposerOpen(false);
+                    setActivityText("");
+                  }}
+                  variant="secondary"
+                  disabled={loggingActivity}
+                  style={styles.editActionBtn}
+                  accessibilityLabel="Cancel logging activity"
+                />
+              </View>
+            </View>
+          ) : (
+            <AppButton
+              title="Log Activity"
+              icon="add"
+              variant="secondary"
+              onPress={() => setComposerOpen(true)}
+              style={styles.logActivityBtn}
+              accessibilityLabel="Log a new activity"
+            />
+          )}
         </View>
 
         <View style={styles.bottomPad} />
       </ScrollView>
 
-      {/* ── Card image full-screen modal ───────────────────────────────────── */}
+      {/* ── Card image full-screen modal ─────────────────────────────────── */}
       {contact.cardImageUri ? (
-        <Modal visible={cardModalVisible} transparent animationType="fade">
+        <Modal
+          visible={cardModalVisible}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setCardModalVisible(false)}
+        >
           <TouchableOpacity
             style={styles.modalBackdrop}
             activeOpacity={1}
             onPress={() => setCardModalVisible(false)}
+            accessibilityLabel="Close card image"
           >
             <Image
               source={{ uri: contact.cardImageUri }}
@@ -498,6 +809,17 @@ export default function ContactDetailScreen() {
           </TouchableOpacity>
         </Modal>
       ) : null}
+
+      {/* ── Delete confirmation ──────────────────────────────────────────── */}
+      <ConfirmSheet
+        visible={confirmDeleteVisible}
+        title="Delete contact?"
+        message={`${fullName} and all their activity will be permanently removed. This cannot be undone.`}
+        confirmLabel="Delete"
+        destructive
+        onConfirm={handleDelete}
+        onCancel={() => setConfirmDeleteVisible(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -507,124 +829,112 @@ export default function ContactDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f9f9fb",
+    backgroundColor: colors.background,
   },
   scrollContent: {
-    paddingBottom: 32,
+    paddingBottom: spacing.xxl,
   },
 
-  // Nav button
-  navBtn: {
-    color: "#0c4aad",
-    fontSize: 16,
-    fontWeight: "600",
-    fontFamily: "OmnesSemiBold",
-    marginRight: 4,
+  // Nav header actions
+  headerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.lg,
   },
 
   // Header section
   headerSection: {
     alignItems: "center",
-    paddingVertical: 24,
-    paddingHorizontal: 16,
-    backgroundColor: "#ffffff",
-    marginBottom: 8,
+    paddingVertical: spacing.xl,
+    paddingHorizontal: spacing.lg,
+    backgroundColor: colors.surface,
+    marginBottom: spacing.sm,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: "#e0e0e0",
+    borderColor: colors.border,
   },
-  avatarLarge: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 12,
-  },
-  avatarLargeText: {
-    color: "#ffffff",
-    fontWeight: "800",
-    fontFamily: "OmnesBold",
-    fontSize: 32,
-    letterSpacing: 1,
+  avatar: {
+    marginBottom: spacing.md,
   },
   fullName: {
-    fontSize: 24,
+    fontSize: type.size.h2 + 2,
     fontWeight: "800",
-    fontFamily: "OmnesBold",
-    color: "#0c4aad",
+    fontFamily: type.family.bold,
+    color: colors.primary,
     textAlign: "center",
-    marginBottom: 4,
+    marginBottom: spacing.xs,
   },
   subtitle: {
-    fontSize: 14,
-    color: "#757575",
+    fontSize: type.size.caption + 1,
+    color: colors.neutral,
     textAlign: "center",
-    marginBottom: 10,
+    marginBottom: spacing.sm + 2,
   },
   completenessContainer: {
     borderWidth: 1.5,
-    borderRadius: 20,
+    borderRadius: radius.full,
     paddingHorizontal: 14,
-    paddingVertical: 4,
-    marginBottom: 16,
+    paddingVertical: spacing.xs,
+    marginBottom: spacing.lg,
   },
   completenessText: {
-    fontSize: 13,
+    fontSize: type.size.caption,
     fontWeight: "700",
-    fontFamily: "OmnesBold",
+    fontFamily: type.family.bold,
   },
   actionRow: {
     flexDirection: "row",
-    gap: 16,
+    gap: spacing.lg,
     justifyContent: "center",
   },
   actionBtn: {
     alignItems: "center",
-    gap: 4,
+    gap: spacing.xs,
   },
-  actionIcon: {
-    fontSize: 24,
+  actionIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.primaryLight,
+    alignItems: "center",
+    justifyContent: "center",
   },
   actionLabel: {
-    fontSize: 11,
-    color: "#616161",
+    fontSize: type.size.tiny,
+    color: colors.textSecondary,
     fontWeight: "500",
+    fontFamily: type.family.medium,
   },
 
   // Section header
   sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 16,
-    marginTop: 16,
+    paddingHorizontal: spacing.lg,
+    marginTop: spacing.lg,
     marginBottom: 6,
-    gap: 8,
+    gap: spacing.sm,
   },
   sectionTitle: {
-    fontSize: 13,
+    fontSize: type.size.caption,
     fontWeight: "700",
-    fontFamily: "OmnesBold",
-    color: "#757575",
+    fontFamily: type.family.bold,
+    color: colors.neutral,
     textTransform: "uppercase",
     letterSpacing: 0.8,
   },
   sectionDivider: {
     flex: 1,
     height: StyleSheet.hairlineWidth,
-    backgroundColor: "#e0e0e0",
+    backgroundColor: colors.border,
   },
 
   // Card
   card: {
-    backgroundColor: "#ffffff",
-    marginHorizontal: 12,
-    borderRadius: 12,
+    backgroundColor: colors.surface,
+    marginHorizontal: spacing.md,
+    borderRadius: radius.lg,
     padding: 14,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 3,
-    elevation: 2,
+    ...shadow.card,
   },
 
   // Info rows
@@ -633,48 +943,55 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: 7,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: "#f0f0f0",
-    gap: 8,
+    borderColor: colors.borderLight,
+    gap: spacing.sm,
   },
   infoLabel: {
     width: 108,
-    fontSize: 13,
-    color: "#9e9e9e",
+    fontSize: type.size.caption,
+    color: colors.textMuted,
     fontWeight: "500",
+    fontFamily: type.family.medium,
     flexShrink: 0,
   },
   infoValue: {
     flex: 1,
-    fontSize: 14,
-    color: "#0c4aad",
+    fontSize: type.size.caption + 1,
+    color: colors.primary,
     fontWeight: "500",
+    fontFamily: type.family.medium,
   },
   link: {
-    color: "#1565c0",
+    color: colors.coldDark,
     textDecorationLine: "underline",
   },
 
   // Amber warning
   amberBox: {
-    backgroundColor: "#fff8e1",
-    borderRadius: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    backgroundColor: colors.warningSoft,
+    borderRadius: radius.md,
     padding: 10,
     marginVertical: 6,
     borderLeftWidth: 3,
-    borderLeftColor: "#ffb300",
+    borderLeftColor: colors.warning,
   },
   amberText: {
-    color: "#e65100",
-    fontSize: 13,
+    flex: 1,
+    color: colors.warmDark,
+    fontSize: type.size.caption,
     fontWeight: "500",
+    fontFamily: type.family.medium,
   },
 
   // Badge row
   badgeRow: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 8,
-    marginBottom: 8,
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
   },
 
   // Consent
@@ -686,7 +1003,7 @@ const styles = StyleSheet.create({
 
   // Chips
   chipsSection: {
-    marginTop: 8,
+    marginTop: spacing.sm,
   },
   chipsRow: {
     flexDirection: "row",
@@ -694,109 +1011,67 @@ const styles = StyleSheet.create({
     gap: 6,
     marginTop: 6,
   },
-  chip: {
-    borderRadius: 20,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    backgroundColor: "#eeeeee",
-  },
-  chipText: {
-    fontSize: 12,
-    fontWeight: "600",
-    fontFamily: "OmnesSemiBold",
-    color: "#424242",
-  },
 
   // Notes & Pain Point
   painPointText: {
-    fontSize: 14,
-    color: "#616161",
+    fontSize: type.size.caption + 1,
+    color: colors.textSecondary,
     fontStyle: "italic",
     lineHeight: 20,
-    marginTop: 4,
+    marginTop: spacing.xs,
   },
   notesText: {
-    fontSize: 14,
-    color: "#0c4aad",
+    fontSize: type.size.caption + 1,
+    color: colors.primary,
     lineHeight: 20,
-    marginTop: 4,
+    marginTop: spacing.xs,
   },
   noteSpacer: {
-    height: 12,
+    height: spacing.md,
   },
   textArea: {
-    borderWidth: 1,
-    borderColor: "#e0e0e0",
-    borderRadius: 8,
-    padding: 10,
-    fontSize: 14,
-    color: "#0c4aad",
     minHeight: 72,
-    marginTop: 4,
     textAlignVertical: "top",
   },
   followUpRow: {
     flexDirection: "row",
     alignItems: "center",
     marginTop: 10,
-    gap: 8,
+    gap: spacing.sm,
   },
   followUpDate: {
-    fontSize: 14,
-    color: "#0c4aad",
+    fontSize: type.size.caption + 1,
+    color: colors.primary,
     fontWeight: "600",
-    fontFamily: "OmnesSemiBold",
+    fontFamily: type.family.semiBold,
   },
 
-  // Edit actions
+  // Edit / composer actions
   editActions: {
     flexDirection: "row",
     gap: 10,
-    marginTop: 14,
+    marginTop: spacing.xs,
   },
-  saveBtn: {
+  editActionBtn: {
     flex: 1,
-    backgroundColor: "#0c4aad",
-    borderRadius: 10,
-    paddingVertical: 12,
-    alignItems: "center",
-  },
-  saveBtnText: {
-    color: "#ffffff",
-    fontWeight: "700",
-    fontFamily: "OmnesBold",
-    fontSize: 15,
-  },
-  cancelBtn: {
-    flex: 1,
-    backgroundColor: "#eeeeee",
-    borderRadius: 10,
-    paddingVertical: 12,
-    alignItems: "center",
-  },
-  cancelBtnText: {
-    color: "#424242",
-    fontWeight: "700",
-    fontFamily: "OmnesBold",
-    fontSize: 15,
   },
 
   // Scanned card
   cardThumb: {
     width: 150,
     height: 95,
-    borderRadius: 6,
+    borderRadius: radius.sm,
   },
   noCardText: {
-    fontSize: 13,
-    color: "#9e9e9e",
+    fontSize: type.size.caption,
+    color: colors.textMuted,
     fontStyle: "italic",
   },
 
   // Activity
   emptyActivity: {
-    fontSize: 13,
-    color: "#9e9e9e",
+    fontSize: type.size.caption,
+    color: colors.textMuted,
     fontStyle: "italic",
     marginBottom: 10,
   },
@@ -808,39 +1083,65 @@ const styles = StyleSheet.create({
   },
   activityBorder: {
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderColor: "#f0f0f0",
+    borderColor: colors.borderLight,
   },
-  activityIcon: {
-    fontSize: 20,
+  activityIconWrap: {
     width: 28,
-    textAlign: "center",
+    alignItems: "center",
+    paddingTop: 2,
   },
   activityBody: {
     flex: 1,
   },
   activityContent: {
-    fontSize: 14,
-    color: "#0c4aad",
+    fontSize: type.size.caption + 1,
+    color: colors.primary,
     lineHeight: 20,
   },
   activityDate: {
-    fontSize: 12,
-    color: "#9e9e9e",
+    fontSize: type.size.tiny + 1,
+    color: colors.textMuted,
     marginTop: 2,
   },
   logActivityBtn: {
-    marginTop: 12,
-    borderWidth: 1.5,
-    borderColor: "#0c4aad",
-    borderRadius: 10,
-    paddingVertical: 10,
-    alignItems: "center",
+    marginTop: spacing.md,
   },
-  logActivityBtnText: {
-    color: "#0c4aad",
-    fontWeight: "700",
-    fontFamily: "OmnesBold",
-    fontSize: 14,
+
+  // Composer
+  composer: {
+    marginTop: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderColor: colors.borderLight,
+    paddingTop: spacing.md,
+  },
+  typeChipsRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  typeChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+    borderRadius: radius.full,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs + 1,
+    backgroundColor: colors.surface,
+  },
+  typeChipSelected: {
+    backgroundColor: colors.primary,
+  },
+  typeChipText: {
+    fontSize: type.size.tiny + 1,
+    fontWeight: "600",
+    fontFamily: type.family.semiBold,
+    color: colors.primary,
+  },
+  typeChipTextSelected: {
+    color: colors.white,
   },
 
   // Modal

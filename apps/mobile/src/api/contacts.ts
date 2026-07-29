@@ -93,6 +93,8 @@ export interface ContactDetail extends ContactListItem {
   followUpDate?: string;
   activities: Activity[];
   lastActivityDate?: string;
+  /** Optimistic-lock revision — echo back in PATCH to detect stale writes. */
+  revision?: number;
 }
 
 export async function getContact(id: string): Promise<ContactDetail> {
