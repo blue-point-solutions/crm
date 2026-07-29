@@ -5,6 +5,7 @@
   "dependencies": {
     "@expo/metro-runtime": "^56.0.15",
     "@platform/app-update": "file:../../../library/packages/platform-app-update",
+    "@platform/ocr-cards": "file:../../../library/packages/platform-ocr-cards",
     "@react-navigation/native": "^7.3.4",
     "@react-navigation/native-stack": "^7.17.6",
     "axios": "^1.18.1",
