@@ -13,12 +13,20 @@ interface ExpoShutterSoundModule {
   play(): void;
 }
 
-const ExpoShutterSound = requireNativeModule<ExpoShutterSoundModule>("ExpoShutterSound");
+// The native module only exists in the Android build — on web (RN-Web e2e)
+// requireNativeModule throws at import time, which would crash the whole
+// bundle. Shutter sound is a nice-to-have there, so degrade to a no-op.
+let ExpoShutterSound: ExpoShutterSoundModule | null = null;
+try {
+  ExpoShutterSound = requireNativeModule<ExpoShutterSoundModule>("ExpoShutterSound");
+} catch {
+  ExpoShutterSound = null;
+}
 
 export function preloadShutterSound(): Promise<void> {
-  return ExpoShutterSound.preload();
+  return ExpoShutterSound ? ExpoShutterSound.preload() : Promise.resolve();
 }
 
 export function playShutterSound(): void {
-  ExpoShutterSound.play();
+  ExpoShutterSound?.play();
 }
