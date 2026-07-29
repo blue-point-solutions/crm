@@ -3,6 +3,8 @@ import { useFonts } from "expo-font";
 import { View, ActivityIndicator } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import RootNavigator from "./src/navigation/RootNavigator";
+import { ToastProvider } from "./src/components";
+import UpdateGate from "./src/update/UpdateGate";
 
 export default function App() {
   const [fontsLoaded] = useFonts({
@@ -22,8 +24,11 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <RootNavigator />
-      <StatusBar style="auto" />
+      <ToastProvider>
+        <RootNavigator />
+        <UpdateGate />
+        <StatusBar style="auto" />
+      </ToastProvider>
     </SafeAreaProvider>
   );
 }

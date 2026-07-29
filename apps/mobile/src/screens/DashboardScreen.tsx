@@ -1,167 +1,26 @@
-import React from "react";
+import React, { useCallback, useRef, useState } from "react";
 import {
   View,
   Text,
   ScrollView,
   TouchableOpacity,
   StyleSheet,
+  RefreshControl,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useFocusEffect } from "@react-navigation/native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { Ionicons } from "@expo/vector-icons";
 import { RootStackParamList } from "../navigation/types";
-import { ContactListItem } from "../api/contacts";
-import { logout } from "../api/auth";
-
-// ---------------------------------------------------------------------------
-// Mock data
-// ---------------------------------------------------------------------------
-
-const TODAY = "2026-06-30";
-
-const MOCK_RECENT: ContactListItem[] = [
-  {
-    id: "1",
-    firstName: "Sarah",
-    lastName: "Mitchell",
-    company: "Apex Solutions Ltd",
-    email: "s.mitchell@apexsolutions.co.uk",
-    phone: "+44 7700 900123",
-    leadTemperature: "Hot",
-    source: "BNI",
-    completenessScore: 92,
-    dateAdded: "2026-06-28T09:14:00Z",
-  },
-  {
-    id: "2",
-    firstName: "James",
-    lastName: "O'Brien",
-    company: "Pinnacle Consulting",
-    email: "jobrien@pinnacleconsult.com",
-    phone: "+44 7700 900456",
-    leadTemperature: "Warm",
-    source: "TradeShow",
-    completenessScore: 74,
-    dateAdded: "2026-06-27T14:32:00Z",
-  },
-  {
-    id: "3",
-    firstName: "Priya",
-    lastName: "Sharma",
-    company: "NovaTech Industries",
-    email: "priya.sharma@novatech.io",
-    leadTemperature: "Hot",
-    source: "Referral",
-    completenessScore: 85,
-    dateAdded: "2026-06-26T11:05:00Z",
-  },
-  {
-    id: "4",
-    firstName: "Marcus",
-    lastName: "Webb",
-    company: "Greenfield Partners",
-    phone: "+44 7911 123456",
-    leadTemperature: "Cold",
-    source: "WalkIn",
-    completenessScore: 41,
-    dateAdded: "2026-06-25T16:48:00Z",
-  },
-  {
-    id: "5",
-    firstName: "Fiona",
-    lastName: "Gallagher",
-    company: "Horizon Digital",
-    email: "fiona@horizondigital.net",
-    phone: "+44 7800 654321",
-    leadTemperature: "Warm",
-    source: "Online",
-    completenessScore: 61,
-    dateAdded: "2026-06-24T10:22:00Z",
-  },
-];
-
-interface ReminderContact extends ContactListItem {
-  followUpDate: string;
-}
-
-const MOCK_REMINDERS: ReminderContact[] = [
-  {
-    id: "6",
-    firstName: "Daniel",
-    lastName: "Okonkwo",
-    company: "Sterling Capital Group",
-    email: "d.okonkwo@sterlingcg.com",
-    phone: "+44 7500 111222",
-    source: "ColdOutreach",
-    completenessScore: 55,
-    dateAdded: "2026-06-01T08:00:00Z",
-    followUpDate: TODAY,
-  },
-  {
-    id: "7",
-    firstName: "Aisha",
-    lastName: "Patel",
-    company: "BlueSky Ventures",
-    email: "aisha@bluesky.io",
-    leadTemperature: "Hot",
-    source: "BNI",
-    completenessScore: 78,
-    dateAdded: "2026-06-10T10:00:00Z",
-    followUpDate: TODAY,
-  },
-  {
-    id: "8",
-    firstName: "Connor",
-    lastName: "Hughes",
-    company: "Meridian Tech",
-    email: "c.hughes@meridian.tech",
-    leadTemperature: "Warm",
-    source: "Referral",
-    completenessScore: 66,
-    dateAdded: "2026-06-12T09:00:00Z",
-    followUpDate: TODAY,
-  },
-];
-
-interface InactiveContact extends ContactListItem {
-  daysSinceActivity: number;
-}
-
-const MOCK_INACTIVE: InactiveContact[] = [
-  {
-    id: "9",
-    firstName: "Rachel",
-    lastName: "Tomkins",
-    company: "Vantage Corp",
-    email: "rtomkins@vantagecorp.com",
-    leadTemperature: "Cold",
-    source: "TradeShow",
-    completenessScore: 35,
-    dateAdded: "2026-04-15T10:00:00Z",
-    daysSinceActivity: 45,
-  },
-  {
-    id: "10",
-    firstName: "Tom",
-    lastName: "Baxter",
-    company: "Ironclad Solutions",
-    email: "tom@ironclad.io",
-    leadTemperature: "Warm",
-    source: "Online",
-    completenessScore: 50,
-    dateAdded: "2026-04-20T10:00:00Z",
-    daysSinceActivity: 38,
-  },
-];
-
-const MOCK_DASHBOARD = {
-  total_contacts: 47,
-  hot_leads: 8,
-  follow_ups_today: 3,
-  added_this_week: 5,
-  recent: MOCK_RECENT,
-  upcoming_reminders: MOCK_REMINDERS,
-  inactive_30d: MOCK_INACTIVE,
-};
+import {
+  getDashboard,
+  DashboardData,
+  ContactListItem,
+  DashboardReminder,
+} from "../api/contacts";
+import { getMe, logout } from "../api/auth";
+import { Avatar, EmptyState, ErrorState, LoadingState, useToast } from "../components";
+import { colors, radius, shadow, spacing, type } from "../theme";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -183,8 +42,18 @@ function formatDate(date: Date): string {
   });
 }
 
-function getInitials(firstName: string, lastName: string): string {
-  return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+/** "Today" / "Tomorrow" / short date for a yyyy-mm-dd follow-up date. */
+function formatFollowUp(dateStr: string): string {
+  const due = new Date(dateStr);
+  if (isNaN(due.getTime())) return dateStr;
+  const startOfDay = (d: Date) =>
+    new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const diffDays = Math.round(
+    (startOfDay(due) - startOfDay(new Date())) / 86400000
+  );
+  if (diffDays <= 0) return "Today";
+  if (diffDays === 1) return "Tomorrow";
+  return due.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 }
 
 // ---------------------------------------------------------------------------
@@ -192,34 +61,59 @@ function getInitials(firstName: string, lastName: string): string {
 // ---------------------------------------------------------------------------
 
 interface StatTileProps {
-  value: number;
+  value: string | number;
   label: string;
   color: string;
-  emoji?: string;
+  hint?: string;
 }
 
-function StatTile({ value, label, color, emoji }: StatTileProps) {
+function StatTile({ value, label, color, hint }: StatTileProps) {
   return (
-    <View style={[styles.statTile, { borderTopColor: color }]}>
-      <Text style={[styles.statValue, { color }]}>
-        {value}
-        {emoji ? ` ${emoji}` : ""}
-      </Text>
+    <View
+      style={[styles.statTile, { borderTopColor: color }]}
+      accessibilityLabel={`${label}: ${value}${hint ? ` (${hint})` : ""}`}
+    >
+      <Text style={[styles.statValue, { color }]}>{value}</Text>
       <Text style={styles.statLabel}>{label}</Text>
+      {hint ? <Text style={styles.statHint}>{hint}</Text> : null}
     </View>
   );
 }
 
-interface AvatarProps {
-  firstName: string;
-  lastName: string;
+interface ContactRowProps {
+  contact: ContactListItem;
+  rightLabel: string;
+  rightColor: string;
+  accessibilityHint: string;
+  onPress: () => void;
 }
 
-function Avatar({ firstName, lastName }: AvatarProps) {
+function ContactRow({
+  contact,
+  rightLabel,
+  rightColor,
+  accessibilityHint,
+  onPress,
+}: ContactRowProps) {
+  const name = `${contact.firstName} ${contact.lastName}`.trim();
   return (
-    <View style={styles.avatar}>
-      <Text style={styles.avatarText}>{getInitials(firstName, lastName)}</Text>
-    </View>
+    <TouchableOpacity
+      style={styles.listRow}
+      onPress={onPress}
+      activeOpacity={0.75}
+      accessibilityRole="button"
+      accessibilityLabel={`${name}, ${contact.company}. ${accessibilityHint}`}
+    >
+      <View style={styles.listRowLeft}>
+        <Text style={styles.listRowName}>{name}</Text>
+        <Text style={styles.listRowSub} numberOfLines={1}>
+          {contact.company}
+        </Text>
+      </View>
+      <Text style={[styles.listRowRight, { color: rightColor }]}>
+        {rightLabel}
+      </Text>
+    </TouchableOpacity>
   );
 }
 
@@ -230,191 +124,293 @@ function Avatar({ firstName, lastName }: AvatarProps) {
 type Props = NativeStackScreenProps<RootStackParamList, "Dashboard">;
 
 export default function DashboardScreen({ navigation }: Props) {
-  const data = MOCK_DASHBOARD;
-  const userName = "Alex"; // placeholder — real app would come from auth context
   const insets = useSafeAreaInsets();
+  const toast = useToast();
+
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [userName, setUserName] = useState<string>("");
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(false);
+  // Guards against setState after unmount / overlapping loads.
+  const loadSeq = useRef(0);
+  // Ref mirror of "we have data" so the focus callback never sees a stale value.
+  const hasData = useRef(false);
+
+  const load = useCallback(
+    async (mode: "initial" | "focus" | "refresh") => {
+      const seq = ++loadSeq.current;
+      if (mode === "initial") setLoading(true);
+      if (mode === "refresh") setRefreshing(true);
+      try {
+        const [dashboard, me] = await Promise.all([getDashboard(), getMe()]);
+        if (seq !== loadSeq.current) return;
+        hasData.current = true;
+        setData(dashboard);
+        setUserName(me.user.name);
+        setError(false);
+      } catch {
+        if (seq !== loadSeq.current) return;
+        if (hasData.current) {
+          // Keep showing stale data; just tell the user the refresh failed.
+          toast.show("Couldn't refresh dashboard", "error");
+        } else {
+          setError(true);
+        }
+      } finally {
+        if (seq === loadSeq.current) {
+          setLoading(false);
+          setRefreshing(false);
+        }
+      }
+    },
+    [toast]
+  );
+
+  // Runs on mount AND on every focus — a single fetch path, no double-fetch.
+  useFocusEffect(
+    useCallback(() => {
+      load(hasData.current ? "focus" : "initial");
+    }, [load])
+  );
 
   function handleLogout() {
     logout();
-    navigation.replace("Login");
+    navigation.reset({ index: 0, routes: [{ name: "Login" }] });
   }
 
-  return (
-      <ScrollView
-        style={styles.screen}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
-      {/* ------------------------------------------------------------------ */}
-      {/* Header                                                               */}
-      {/* ------------------------------------------------------------------ */}
-      <View style={[styles.header, { marginTop: insets.top }]}>
-        <View style={styles.headerLeft}>
-          <Text style={styles.greeting}>
-            {getGreeting()}, {userName}
-          </Text>
-          <Text style={styles.dateText}>{formatDate(new Date())}</Text>
-        </View>
-        <View style={styles.headerRight}>
-          {/* Bell icon placeholder */}
-          <TouchableOpacity style={styles.bellButton}>
-            <Text style={styles.bellIcon}>🔔</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={handleLogout}>
-            <Text style={styles.logoutText}>Sign Out</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+  function openContact(contactId: string) {
+    navigation.navigate("ContactDetail", { contactId });
+  }
 
-      {/* ------------------------------------------------------------------ */}
-      {/* Stats row (2x2 grid)                                                */}
-      {/* ------------------------------------------------------------------ */}
-      <View style={styles.statsGrid}>
-        <StatTile
-          value={data.total_contacts}
-          label="Total Contacts"
-          color="#0c4aad"
-        />
-        <StatTile
-          value={data.hot_leads}
-          label="Hot Leads"
-          color="#dc2626"
-          emoji="🔥"
-        />
-        <StatTile
-          value={data.follow_ups_today}
-          label="Follow-ups Today"
-          color="#ea580c"
-        />
-        <StatTile
-          value={data.added_this_week}
-          label="Added This Week"
-          color="#16a34a"
-        />
+  const header = (
+    <View style={[styles.header, { marginTop: insets.top }]}>
+      <View style={styles.headerLeft}>
+        <Text style={styles.greeting}>
+          {getGreeting()}
+          {userName ? `, ${userName.split(" ")[0]}` : ""}
+        </Text>
+        <Text style={styles.dateText}>{formatDate(new Date())}</Text>
       </View>
-
-      {/* ------------------------------------------------------------------ */}
-      {/* Scan CTA — compact strip                                            */}
-      {/* ------------------------------------------------------------------ */}
       <TouchableOpacity
-        style={styles.scanStrip}
-        onPress={() => navigation.navigate("CameraPermission")}
+        onPress={handleLogout}
+        accessibilityRole="button"
+        accessibilityLabel="Sign out"
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       >
-        <Text style={styles.scanStripIcon}>📷</Text>
-        <Text style={styles.scanStripText}>Scan a Business Card</Text>
-        <Text style={styles.scanStripArrow}>›</Text>
+        <Text style={styles.logoutText}>Sign Out</Text>
       </TouchableOpacity>
+    </View>
+  );
 
-      {/* ------------------------------------------------------------------ */}
-      {/* Recent Contacts                                                      */}
-      {/* ------------------------------------------------------------------ */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Recently Added</Text>
-          <TouchableOpacity onPress={() => navigation.navigate("Contacts")}>
-            <Text style={styles.viewAll}>View All</Text>
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.horizontalScroll}
-        >
-          {data.recent.map((contact) => (
-            <TouchableOpacity
-              key={contact.id}
-              style={styles.contactCard}
-              onPress={() =>
-                navigation.navigate("ContactDetail", {
-                  contactId: contact.id,
-                })
-              }
-            >
-              <Avatar
-                firstName={contact.firstName}
-                lastName={contact.lastName}
-              />
-              <Text style={styles.contactName} numberOfLines={1}>
-                {contact.firstName} {contact.lastName}
-              </Text>
-              <Text style={styles.contactCompany} numberOfLines={1}>
-                {contact.company}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+  if (loading && !data) {
+    return (
+      <View style={styles.screen}>
+        {header}
+        <LoadingState label="Loading dashboard…" />
       </View>
+    );
+  }
 
+  if (error && !data) {
+    return (
+      <View style={styles.screen}>
+        {header}
+        <ErrorState
+          title="Couldn't load your dashboard"
+          onRetry={() => load("initial")}
+        />
+      </View>
+    );
+  }
+
+  if (!data) return null;
+
+  const reminders = data.upcomingReminders ?? [];
+  const inactive = data.inactive30D ?? [];
+  const recent = data.recent ?? [];
+
+  return (
+    <ScrollView
+      style={styles.screen}
+      contentContainerStyle={styles.content}
+      showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl
+          refreshing={refreshing}
+          onRefresh={() => load("refresh")}
+          tintColor={colors.primary}
+          colors={[colors.primary]}
+        />
+      }
+    >
       {/* ------------------------------------------------------------------ */}
-      {/* Follow-up Reminders                                                  */}
+      {/* Header                                                              */}
       {/* ------------------------------------------------------------------ */}
-      {(data.upcoming_reminders?.length ?? 0) > 0 && (
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Follow-ups Due</Text>
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>
-                {data.upcoming_reminders?.length ?? 0}
-              </Text>
+      {header}
+
+      {data.totalContacts === 0 ? (
+        // -----------------------------------------------------------------
+        // First-run: no contacts yet — nudge toward the first scan.
+        // -----------------------------------------------------------------
+        <EmptyState
+          icon="camera-outline"
+          title="No contacts yet"
+          message="Scan your first business card and it will show up here."
+          actionLabel="Scan a Business Card"
+          onAction={() => navigation.navigate("CameraPermission")}
+        />
+      ) : (
+        <>
+          {/* ---------------------------------------------------------------- */}
+          {/* Stats row (2x2 grid)                                              */}
+          {/* ---------------------------------------------------------------- */}
+          <View style={styles.statsGrid}>
+            <StatTile
+              value={data.totalContacts}
+              label="Total Contacts"
+              color={colors.primary}
+            />
+            <StatTile
+              value={reminders.length}
+              label="Follow-ups Due"
+              color={colors.warmDark}
+            />
+            <StatTile
+              value={data.activeDealsCount}
+              label="Active Deals"
+              color={colors.success}
+              hint="Phase 2"
+            />
+            <StatTile
+              value={data.pipelineValue.toLocaleString("en-GB")}
+              label="Pipeline Value"
+              color={colors.coldDark}
+              hint="Phase 2"
+            />
+          </View>
+
+          {/* ---------------------------------------------------------------- */}
+          {/* Scan CTA — compact strip                                          */}
+          {/* ---------------------------------------------------------------- */}
+          <TouchableOpacity
+            style={styles.scanStrip}
+            onPress={() => navigation.navigate("CameraPermission")}
+            activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel="Scan a business card"
+          >
+            <Ionicons
+              name="camera-outline"
+              size={20}
+              color={colors.white}
+              style={styles.scanStripIcon}
+            />
+            <Text style={styles.scanStripText}>Scan a Business Card</Text>
+            <Ionicons name="chevron-forward" size={18} color={colors.primaryLight} />
+          </TouchableOpacity>
+
+          {/* ---------------------------------------------------------------- */}
+          {/* Recently Added                                                    */}
+          {/* ---------------------------------------------------------------- */}
+          {recent.length > 0 && (
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Recently Added</Text>
+                <TouchableOpacity
+                  onPress={() => navigation.navigate("Contacts")}
+                  accessibilityRole="button"
+                  accessibilityLabel="View all contacts"
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Text style={styles.viewAll}>View All</Text>
+                </TouchableOpacity>
+              </View>
+
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.horizontalScroll}
+              >
+                {recent.map((contact) => {
+                  const name =
+                    `${contact.firstName} ${contact.lastName}`.trim();
+                  return (
+                    <TouchableOpacity
+                      key={contact.id}
+                      style={styles.contactCard}
+                      onPress={() => openContact(contact.id)}
+                      activeOpacity={0.75}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Open contact ${name}, ${contact.company}`}
+                    >
+                      <Avatar name={name} size="md" style={styles.cardAvatar} />
+                      <Text style={styles.contactName} numberOfLines={1}>
+                        {name}
+                      </Text>
+                      <Text style={styles.contactCompany} numberOfLines={1}>
+                        {contact.company}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
             </View>
-          </View>
+          )}
 
-          {data.upcoming_reminders.map((contact) => (
-            <TouchableOpacity
-              key={contact.id}
-              style={styles.listRow}
-              onPress={() =>
-                navigation.navigate("ContactDetail", {
-                  contactId: contact.id,
-                })
-              }
-            >
-              <View style={styles.listRowLeft}>
-                <Text style={styles.listRowName}>
-                  {contact.firstName} {contact.lastName}
-                </Text>
-                <Text style={styles.listRowSub}>{contact.company}</Text>
+          {/* ---------------------------------------------------------------- */}
+          {/* Upcoming follow-ups                                               */}
+          {/* ---------------------------------------------------------------- */}
+          {reminders.length > 0 && (
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Upcoming Follow-ups</Text>
+                <View style={styles.countBadge}>
+                  <Text style={styles.countBadgeText}>{reminders.length}</Text>
+                </View>
               </View>
-              <Text style={styles.followUpLabel}>Follow up today</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
 
-      {/* ------------------------------------------------------------------ */}
-      {/* Inactive Contacts                                                    */}
-      {/* ------------------------------------------------------------------ */}
-      {(data.inactive_30d?.length ?? 0) > 0 && (
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Needs Attention</Text>
-          </View>
+              {reminders.map((reminder: DashboardReminder) => (
+                <ContactRow
+                  key={reminder.contact.id}
+                  contact={reminder.contact}
+                  rightLabel={formatFollowUp(reminder.followUpDate)}
+                  rightColor={colors.warmDark}
+                  accessibilityHint={`Follow up ${formatFollowUp(
+                    reminder.followUpDate
+                  )}`}
+                  onPress={() => openContact(reminder.contact.id)}
+                />
+              ))}
+            </View>
+          )}
 
-          {data.inactive_30d.map((contact) => (
-            <TouchableOpacity
-              key={contact.id}
-              style={styles.listRow}
-              onPress={() =>
-                navigation.navigate("ContactDetail", {
-                  contactId: contact.id,
-                })
-              }
-            >
-              <View style={styles.listRowLeft}>
-                <Text style={styles.listRowName}>
-                  {contact.firstName} {contact.lastName}
-                </Text>
-                <Text style={styles.listRowSub}>{contact.company}</Text>
+          {/* ---------------------------------------------------------------- */}
+          {/* Needs attention (no activity in 30+ days)                         */}
+          {/* ---------------------------------------------------------------- */}
+          {inactive.length > 0 && (
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Needs Attention</Text>
               </View>
-              <Text style={styles.inactiveLabel}>
-                {contact.daysSinceActivity}d ago
+              <Text style={styles.sectionCaption}>
+                No activity in the last 30 days
               </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
 
+              {inactive.map((contact) => (
+                <ContactRow
+                  key={contact.id}
+                  contact={contact}
+                  rightLabel="30d+ quiet"
+                  rightColor={colors.textMuted}
+                  accessibilityHint="No activity in over 30 days"
+                  onPress={() => openContact(contact.id)}
+                />
+              ))}
+            </View>
+          )}
+        </>
+      )}
     </ScrollView>
   );
 }
@@ -426,10 +422,10 @@ export default function DashboardScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: "#f5f6fa",
+    backgroundColor: colors.background,
   },
   content: {
-    paddingBottom: 40,
+    paddingBottom: spacing.xxl + spacing.sm,
   },
 
   // Header
@@ -437,159 +433,142 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    backgroundColor: "#0c4aad",
+    backgroundColor: colors.primary,
     // marginTop is applied dynamically via useSafeAreaInsets() -- margin
     // (not padding) leaves an actual gap above the header's blue
     // background, so the status bar area shows the screen's own neutral
     // background behind it instead of blue, and its default (unmodified)
     // icon color stays visible without needing a per-screen override.
-    paddingTop: 20,
-    paddingBottom: 24,
-    paddingHorizontal: 20,
+    paddingTop: spacing.lg + spacing.xs,
+    paddingBottom: spacing.xl,
+    paddingHorizontal: spacing.lg + spacing.xs,
   },
   headerLeft: {
     flex: 1,
-  },
-  headerRight: {
-    alignItems: "flex-end",
-    gap: 8,
+    marginRight: spacing.md,
   },
   greeting: {
-    fontSize: 22,
+    fontSize: type.size.h2,
     fontWeight: "700",
-    fontFamily: "OmnesBold",
-    color: "#fff",
-    marginBottom: 4,
+    fontFamily: type.family.bold,
+    color: colors.white,
+    marginBottom: spacing.xs,
   },
   dateText: {
-    fontSize: 13,
-    color: "#a0a8c0",
-  },
-  bellButton: {
-    padding: 4,
-  },
-  bellIcon: {
-    fontSize: 22,
+    fontSize: type.size.caption,
+    color: colors.primaryLight,
   },
   logoutText: {
-    fontSize: 12,
-    color: "#a0a8c0",
+    fontSize: type.size.tiny + 1,
+    color: colors.primaryLight,
   },
 
   // Stats grid
   statsGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    padding: 12,
-    gap: 12,
+    padding: spacing.md,
+    gap: spacing.md,
   },
   statTile: {
     flex: 1,
     minWidth: "45%",
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: spacing.lg,
     borderTopWidth: 4,
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
+    ...shadow.card,
   },
   statValue: {
-    fontSize: 28,
+    fontSize: type.size.h1,
     fontWeight: "800",
-    fontFamily: "OmnesBold",
-    marginBottom: 4,
+    fontFamily: type.family.bold,
+    marginBottom: spacing.xs,
   },
   statLabel: {
-    fontSize: 12,
-    color: "#6b7280",
+    fontSize: type.size.tiny + 1,
+    color: colors.textSecondary,
     fontWeight: "500",
+    fontFamily: type.family.medium,
+  },
+  statHint: {
+    fontSize: type.size.tiny - 1,
+    color: colors.textMuted,
+    marginTop: 2,
   },
 
   // Sections
   section: {
-    marginHorizontal: 16,
-    marginBottom: 20,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.lg + spacing.xs,
   },
   sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   sectionTitle: {
-    fontSize: 17,
+    fontSize: type.size.h3 - 1,
     fontWeight: "700",
-    fontFamily: "OmnesBold",
-    color: "#0c4aad",
+    fontFamily: type.family.bold,
+    color: colors.primary,
+  },
+  sectionCaption: {
+    fontSize: type.size.tiny + 1,
+    color: colors.textMuted,
+    marginTop: -spacing.sm,
+    marginBottom: spacing.md,
   },
   viewAll: {
-    fontSize: 13,
-    color: "#0c4aad",
+    fontSize: type.size.caption,
+    color: colors.primary,
     fontWeight: "600",
-    fontFamily: "OmnesSemiBold",
+    fontFamily: type.family.semiBold,
   },
-  badge: {
-    backgroundColor: "#f59e0b",
-    borderRadius: 10,
+  countBadge: {
+    backgroundColor: colors.warning,
+    borderRadius: radius.full,
     minWidth: 20,
     height: 20,
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 6,
+    paddingHorizontal: spacing.xs + 2,
   },
-  badgeText: {
-    color: "#fff",
-    fontSize: 11,
+  countBadgeText: {
+    color: colors.white,
+    fontSize: type.size.tiny,
     fontWeight: "700",
-    fontFamily: "OmnesBold",
+    fontFamily: type.family.bold,
   },
 
   // Horizontal contact cards
   horizontalScroll: {
-    gap: 12,
-    paddingRight: 4,
+    gap: spacing.md,
+    paddingRight: spacing.xs,
   },
   contactCard: {
     width: 100,
     alignItems: "center",
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 12,
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    ...shadow.card,
   },
-  avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "#0c4aad",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  avatarText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "700",
-    fontFamily: "OmnesBold",
+  cardAvatar: {
+    marginBottom: spacing.sm,
   },
   contactName: {
-    fontSize: 12,
+    fontSize: type.size.tiny + 1,
     fontWeight: "600",
-    fontFamily: "OmnesSemiBold",
-    color: "#0c4aad",
+    fontFamily: type.family.semiBold,
+    color: colors.primary,
     textAlign: "center",
     marginBottom: 2,
   },
   contactCompany: {
-    fontSize: 10,
-    color: "#6b7280",
+    fontSize: type.size.tiny - 1,
+    color: colors.textSecondary,
     textAlign: "center",
   },
 
@@ -598,69 +577,53 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#fff",
-    borderRadius: 10,
-    padding: 14,
-    marginBottom: 8,
-    shadowColor: "#000",
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 1,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md + 2,
+    padding: spacing.md + 2,
+    marginBottom: spacing.sm,
+    ...shadow.card,
   },
   listRowLeft: {
     flex: 1,
-    marginRight: 8,
+    marginRight: spacing.sm,
   },
   listRowName: {
-    fontSize: 14,
+    fontSize: type.size.caption + 1,
     fontWeight: "600",
-    fontFamily: "OmnesSemiBold",
-    color: "#0c4aad",
+    fontFamily: type.family.semiBold,
+    color: colors.primary,
     marginBottom: 2,
   },
   listRowSub: {
-    fontSize: 12,
-    color: "#6b7280",
+    fontSize: type.size.tiny + 1,
+    color: colors.textSecondary,
   },
-  followUpLabel: {
-    fontSize: 12,
-    color: "#d97706",
+  listRowRight: {
+    fontSize: type.size.tiny + 1,
     fontWeight: "600",
-    fontFamily: "OmnesSemiBold",
-  },
-  inactiveLabel: {
-    fontSize: 12,
-    color: "#9ca3af",
-    fontWeight: "500",
+    fontFamily: type.family.semiBold,
   },
 
   // Scan CTA — compact strip
   scanStrip: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#0c4aad",
-    borderRadius: 10,
-    marginHorizontal: 16,
-    marginTop: 8,
-    marginBottom: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
+    backgroundColor: colors.primary,
+    borderRadius: radius.md + 2,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.sm,
+    marginBottom: spacing.sm,
+    paddingVertical: spacing.sm + 2,
+    paddingHorizontal: spacing.md + 2,
   },
   scanStripIcon: {
-    fontSize: 18,
-    marginRight: 8,
+    marginRight: spacing.sm,
   },
   scanStripText: {
     flex: 1,
-    fontSize: 14,
+    fontSize: type.size.caption + 1,
     fontWeight: "600",
-    fontFamily: "OmnesSemiBold",
-    color: "#fff",
-  },
-  scanStripArrow: {
-    fontSize: 20,
-    color: "#a0c4ff",
-    marginLeft: 4,
+    fontFamily: type.family.semiBold,
+    color: colors.white,
   },
 });

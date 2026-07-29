@@ -1,15 +1,17 @@
 import { extractTextFromImage, isSupported } from "expo-text-extractor";
+import { scanCard, TextExtractorPort } from "@platform/ocr-cards";
 import { OcrResult } from "../types/contact";
-import { parseCardText } from "./ocrParser";
 
 /**
  * Parses a business card image entirely on-device: ML Kit (Android) /
- * Vision (iOS) via expo-text-extractor for text recognition, then
- * parseCardText() for structured field extraction. By design this never
- * leaves the device -- no network call, no backend round-trip. A backend
- * OCR fallback (for cases where on-device recognition proves insufficient)
- * is an intentional future seam, not built here: see platform-ocr-cards
- * (ticket #4) for the pluggable-provider shape this should slot into.
+ * Vision (iOS) via expo-text-extractor for text recognition, then the
+ * @platform/ocr-cards parser for structured field extraction. By design this
+ * never leaves the device -- no network call, no backend round-trip.
+ *
+ * The parser + provider port now live in the library package
+ * @platform/ocr-cards (ticket #4's pluggable-provider shape): the app owns
+ * the expo-text-extractor dependency and injects it as a TextExtractorPort,
+ * so a backend OCR fallback later is just another port implementation.
  *
  * expo-text-extractor is a native module -- `isSupported` is false on web
  * (no ML Kit/Vision there), where this falls back to a fixed mock result so
@@ -17,13 +19,16 @@ import { parseCardText } from "./ocrParser";
  * a native build. On a real device/emulator this always uses the real
  * on-device engine, never the mock.
  */
+const expoTextExtractor: TextExtractorPort = {
+  extractText: (imageRef: string) => extractTextFromImage(imageRef),
+};
+
 export async function parseCardImage(imageUri: string): Promise<OcrResult> {
   if (!isSupported) {
     return mockCardResult();
   }
 
-  const lines = await extractTextFromImage(imageUri);
-  return parseCardText(lines);
+  return scanCard(expoTextExtractor, imageUri);
 }
 
 function mockCardResult(): OcrResult {

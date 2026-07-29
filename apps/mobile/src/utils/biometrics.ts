@@ -10,10 +10,14 @@ const BIOMETRIC_PREFERENCE_KEY = "crm_biometric_preference";
  * Biometric data never leaves the device.
  */
 export async function isBiometricAvailable(): Promise<boolean> {
-  const hasHardware = await LocalAuthentication.hasHardwareAsync();
-  if (!hasHardware) return false;
-  const isEnrolled = await LocalAuthentication.isEnrolledAsync();
-  return isEnrolled;
+  try {
+    const hasHardware = await LocalAuthentication.hasHardwareAsync();
+    if (!hasHardware) return false;
+    return await LocalAuthentication.isEnrolledAsync();
+  } catch {
+    // Web / unsupported platform: the native module throws — treat as absent.
+    return false;
+  }
 }
 
 /**
@@ -87,5 +91,9 @@ export async function setBiometricPreference(
  * Returns null if the user has not yet been asked.
  */
 export async function getBiometricPreference(): Promise<string | null> {
-  return SecureStore.getItemAsync(BIOMETRIC_PREFERENCE_KEY);
+  try {
+    return await SecureStore.getItemAsync(BIOMETRIC_PREFERENCE_KEY);
+  } catch {
+    return null; // SecureStore unavailable (web) — never asked
+  }
 }

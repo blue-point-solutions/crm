@@ -33,11 +33,12 @@ export default defineConfig({
 
   webServer: [
     {
-      // Backend: expects an already-running uvicorn on 8000 (see docker-compose.yml
-      // for local Postgres + the CRM_DATABASE_URL/DATABASE_URL/JWT_SECRET env this
-      // needs). Not auto-started here since it needs those env vars set explicitly.
+      // Backend: expects an already-running uvicorn (see docker-compose.yml
+      // for local Postgres + the DATABASE_URL/JWT_SECRET env this needs).
+      // Default port is 8001 because 8000 is often taken by the erp dev
+      // container on this machine; override with E2E_API_URL.
       command: "true",
-      url: "http://127.0.0.1:8000/health",
+      url: `${process.env["E2E_API_URL"] ?? "http://127.0.0.1:8001"}/health`,
       reuseExistingServer: true,
       timeout: 5_000,
     },
@@ -54,6 +55,11 @@ export default defineConfig({
       timeout: 120_000,
       stdout: "pipe",
       stderr: "pipe",
+      env: {
+        // Baked into the bundle at Metro start — must point at the same
+        // backend the health check above verified.
+        EXPO_PUBLIC_API_URL: process.env["E2E_API_URL"] ?? "http://localhost:8001",
+      },
     },
   ],
 });

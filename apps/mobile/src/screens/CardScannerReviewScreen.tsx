@@ -16,12 +16,14 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/types";
 import { parseCardImage } from "../utils/ocr";
+import { deleteCardImage } from "../utils/cardImage";
 import { OcrResult, ContactDraft } from "../types/contact";
 
 type Props = NativeStackScreenProps<RootStackParamList, "CardScannerReview">;
 
-// For demo purposes — a static duplicate example
-const hasDuplicate = true;
+// Real duplicate detection happens server-side at save (POST /contacts
+// returns candidates); the old static demo banner is gone.
+const hasDuplicate = false;
 
 const CONFIDENCE_THRESHOLD = 0.7;
 
@@ -159,10 +161,19 @@ export default function CardScannerReviewScreen({ navigation, route }: Props) {
       "All extracted information will be lost.",
       [
         { text: "Keep Editing", style: "cancel" },
-        { text: "Discard", style: "destructive", onPress: () => navigation.goBack() },
+        {
+          text: "Discard",
+          style: "destructive",
+          onPress: () => {
+            // Security #52: the cropped card photo is a cache temp file —
+            // remove it as soon as the user discards the scan.
+            deleteCardImage(imageUri);
+            navigation.goBack();
+          },
+        },
       ]
     );
-  }, [navigation]);
+  }, [navigation, imageUri]);
 
   if (isLoading) {
     return (
