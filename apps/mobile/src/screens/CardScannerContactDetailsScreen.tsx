@@ -10,6 +10,8 @@ import {
   Alert,
 } from "react-native";
 import { createContact } from "../api/contacts";
+import { uploadCardImage } from "../api/cards";
+import { deleteCardImage } from "../utils/cardImage";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/types";
@@ -119,6 +121,12 @@ export default function CardScannerContactDetailsScreen({ navigation, route }: P
         draft.followUpDate && /^\d{4}-\d{2}-\d{2}$/.test(draft.followUpDate)
           ? `${draft.followUpDate}T09:00:00Z`
           : undefined;
+      // Card image: best-effort upload to R2 when the user opted to keep it;
+      // failure (offline, storage unconfigured) never blocks the save.
+      let cardImageUrl: string | undefined;
+      if (draft.saveCardImage && draft.cardImageUri) {
+        cardImageUrl = (await uploadCardImage(draft.cardImageUri)) ?? undefined;
+      }
       const created = await createContact({
         firstName: draft.firstName,
         lastName: draft.lastName,
@@ -130,8 +138,7 @@ export default function CardScannerContactDetailsScreen({ navigation, route }: P
         address: draft.address || undefined,
         linkedin: draft.linkedin || undefined,
         facebook: draft.facebook || undefined,
-        // cardImageUri is a local file:// path — server-side card image
-        // storage (R2 upload) is a separate ticket; not sent yet.
+        cardImageUri: cardImageUrl,
         industry: undefined,
         source: draft.source ?? undefined,
         tags: draft.tags,
@@ -145,6 +152,9 @@ export default function CardScannerContactDetailsScreen({ navigation, route }: P
         followUpDate: followUp,
         sourceMethod: "Card Scan",
       });
+      // Local temp photo is no longer needed once the contact is saved
+      // (either uploaded to R2 or intentionally not kept) — security #52.
+      deleteCardImage(draft.cardImageUri);
       navigation.replace("CardScannerConfirm", {
         contactId: created.id,
         contactName: `${created.firstName} ${created.lastName}`.trim(),
