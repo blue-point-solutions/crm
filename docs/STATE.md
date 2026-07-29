@@ -127,3 +127,18 @@ APK distribution + in-app self-update (2026-07-28).
   mandatory=false. Emulator smoke test NOT possible on this machine (no KVM
   — HUMAN-QUEUE §4); APK statically verified (launchable MainActivity, R8
   dex, JS bundle, ML Kit libs). On-device verification = HUMAN-QUEUE §5.
+
+## Phase 2 — increment 1 (2026-07-29)
+- Deals/pipeline API live (crm #37): POST /deals · GET /deals?stage=&contactId= ·
+  POST /deals/{id}/advance ({toStage} → unique legal transition; 409 carries
+  allowedTransitions) · GET /pipeline board rollup. platform-tracking pure
+  engine + sales_pipeline() (#255) + its asyncpg jobs store — no transition
+  logic reimplemented. Stage events land on the contact activity timeline
+  (type "stage"); dashboard activeDealsCount/pipelineValue are real.
+- Evidence: pytest 51/51, mypy strict, ruff clean; deployed; live e2e:
+  create deal (lead, ₱75k) → advance qualified → illegal jump to won 409 w/
+  allowed [proposal, lost] → board (qualified 1/₱75k) → dashboard tiles →
+  timeline shows "Deal started" + "Lead → Qualified". QA rows removed after.
+- Next increments: contact-detail deal card + start-deal (mobile), pipeline
+  board screen, auto-log quick actions + local follow-up notifications,
+  tags management. Placement of #37 in crm/apps/api flagged for Sid.
