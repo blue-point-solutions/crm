@@ -36,7 +36,29 @@ workaround inside Semaphore:
   unaffected. Note other PH gateways (PhilSMS/iTexMo) enforce the same
   telco-level sender-ID registration — switching providers doesn't dodge this.
 
-## 4. Grocery public hostname (decision)
+## 4. Local KVM for emulator verification (one command)
+The Android emulator on this machine can't use hardware acceleration — user
+`sigbin` isn't in the `kvm` group, and agents have no passwordless sudo. Run:
+`sudo usermod -aG kvm sigbin` then restart the WSL session. Until then agents
+fall back to painfully slow software emulation for APK smoke tests.
+
+## 5. Device-test v1.1.0 (versionCode 3) on a fleet A15
+v3 carries the full backend wiring + redesign. Once published: on a phone with
+v2 installed, open the app → update prompt → download → OS installer →
+relaunch → sign in → confirm Dashboard/Contacts show live data and a scanned
+card saves. Also exercises the self-update loop end-to-end (STATE.md item).
+Real-device checks agents can't do: camera scan → ML Kit OCR on a physical
+card, biometric unlock, SMS quick action via SIM.
+
+## 6. erp repo access + real CI (billing/seat issue — from turnover doc)
+Sid's account can't see rinehardramos/erp / blue-point-solutions/erp
+(rechecked Jul 28) and mobile CI is off pending the same billing fix. Fixing
+billing unblocks the deals API (#37) and restores the CI merge gate. Also
+still open from the turnover: Play Integrity (#54) is a question, and the
+"backend lives in erp repo" pivot (PR #33) vs the live crm/apps/api deployment
+needs a decision once access exists.
+
+## 7. Grocery public hostname (decision)
 `bpconnect.app` is active in the Cloudflare account and the **crm** tunnel is
 routed (api/apk.bpconnect.app). Grocery's storefront still has
 `grocery.infobroker.tech` URLs **baked at build time**. Decide: route grocery
