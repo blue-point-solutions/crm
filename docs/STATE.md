@@ -1,5 +1,9 @@
 # Project State — CRM
 
+## Current goal (2026-07-29 session)
+Finish + polish the mobile app against the now-real backend: feature-complete,
+QoL in place, modern theme-appropriate UI. Human gates stay open, never block.
+
 ## Current phase
 MVP happy-path merged (#32); prod live on Contabo behind **bpconnect.app** with
 APK distribution + in-app self-update (2026-07-28).
@@ -61,6 +65,20 @@ APK distribution + in-app self-update (2026-07-28).
   and sha256 matches manifest
   (`c94772632c4930943ada47f0a8b60a5507784a248328b4436b5769e739d86be3`);
   `bpconnect-crm-latest.apk` 200.
+
+- 2026-07-29 · library review queue cleared · #256 platform-contacts reviewed+merged
+  (33/33, mypy strict; pushed ruff style fix). #257 platform-activity + #258
+  platform-import-export: requested changes (sync port / no validation; live
+  formula-injection on export), fixes implemented on the branches
+  (3c95af77, 215e8db9), re-verified in fresh worktrees (32/32 and 28/28, mypy
+  strict + ruff clean), merged. @platform/ocr-cards extracted from crm mobile
+  (18 vitest; crm side commit b578682).
+- 2026-07-29 · contacts API + dashboard live (crm #8) · pytest 23/23, mypy
+  strict, ruff clean; deployed; live e2e against api.bpconnect.app: register →
+  POST /contacts (201, completenessScore 65) → activity 201 → GET /contacts?q=
+  (total 1) → GET /dashboard (totals+reminder) → favorite toggle → PATCH
+  (revision 2, status Active). Tables crm_contacts/crm_activity bootstrap in
+  lifespan; tenant_id UUID NOT NULL defaulted per Phase-4 recommendation.
 
 ## Next
 - Device-test the update loop on a fleet A15: install v2 APK, publish v3, confirm
