@@ -147,8 +147,12 @@ export async function deleteContact(id: string): Promise<void> {
   await client.delete(`/contacts/${id}`);
 }
 
-export async function toggleFavorite(id: string): Promise<{ id: string; favorite: boolean }> {
-  const { data } = await client.post<{ id: string; favorite: boolean }>(
+export async function toggleFavorite(
+  id: string
+): Promise<{ id: string; favorite: boolean; revision: number }> {
+  // revision comes back because toggling bumps the optimistic lock — callers
+  // holding the contact must merge it or their next PATCH 409s spuriously.
+  const { data } = await client.post<{ id: string; favorite: boolean; revision: number }>(
     `/contacts/${id}/favorite`
   );
   return data;

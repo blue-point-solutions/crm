@@ -78,6 +78,16 @@ class FakeRepo:
     async def delete(self, tenant_id: uuid.UUID, contact_id: uuid.UUID) -> bool:
         return self.rows.pop(contact_id, None) is not None
 
+    async def toggle_favorite(
+        self, tenant_id: uuid.UUID, contact_id: uuid.UUID
+    ) -> dict[str, Any] | None:
+        row = self.rows.get(contact_id)
+        if row is None:
+            return None
+        row["favorite"] = not row["favorite"]
+        row["revision"] += 1
+        return row
+
     async def search(self, tenant_id: uuid.UUID, **kw: Any) -> Any:
         rows = list(self.rows.values())
         if kw.get("q"):
@@ -242,11 +252,32 @@ def test_delete_then_404() -> None:
     assert client.delete(f"/contacts/{cid}").status_code == 404
 
 
-def test_favorite_toggles() -> None:
+def test_favorite_toggles_and_returns_revision() -> None:
     client, _ = _client()
     cid = client.post("/contacts", json={"firstName": "Ada"}).json()["id"]
-    assert client.post(f"/contacts/{cid}/favorite").json()["favorite"] is True
-    assert client.post(f"/contacts/{cid}/favorite").json()["favorite"] is False
+    first = client.post(f"/contacts/{cid}/favorite").json()
+    assert first["favorite"] is True
+    assert first["revision"] == 1  # toggle bumps the optimistic lock
+    second = client.post(f"/contacts/{cid}/favorite").json()
+    assert second["favorite"] is False
+    assert second["revision"] == 2
+
+
+def test_favorite_then_patch_with_merged_revision_succeeds() -> None:
+    client, _ = _client()
+    cid = client.post("/contacts", json={"firstName": "Ada"}).json()["id"]
+    rev = client.post(f"/contacts/{cid}/favorite").json()["revision"]
+    resp = client.patch(f"/contacts/{cid}", json={"notes": "kept", "revision": rev})
+    assert resp.status_code == 200
+
+
+def test_patch_null_on_non_nullable_field_422s() -> None:
+    client, _ = _client()
+    cid = client.post("/contacts", json={"firstName": "Ada"}).json()["id"]
+    assert client.patch(f"/contacts/{cid}", json={"notes": None}).status_code == 422
+    assert client.patch(f"/contacts/{cid}", json={"status": None}).status_code == 422
+    # Genuinely nullable columns may be cleared explicitly.
+    assert client.patch(f"/contacts/{cid}", json={"painPoint": None}).status_code == 200
 
 
 def test_list_returns_items_total_facets() -> None:

@@ -126,6 +126,9 @@ class ContactRepo(Protocol):
         expected_revision: int | None,
     ) -> dict[str, Any] | None: ...
     async def delete(self, tenant_id: uuid.UUID, contact_id: uuid.UUID) -> bool: ...
+    async def toggle_favorite(
+        self, tenant_id: uuid.UUID, contact_id: uuid.UUID
+    ) -> dict[str, Any] | None: ...
     async def search(
         self,
         tenant_id: uuid.UUID,
@@ -228,6 +231,20 @@ class AsyncpgContactRepo:
                 tenant_id, contact_id,
             )
         return str(result).endswith("1")
+
+    async def toggle_favorite(
+        self, tenant_id: uuid.UUID, contact_id: uuid.UUID
+    ) -> dict[str, Any] | None:
+        # Atomic negation — a read-then-write toggle would let two concurrent
+        # taps write the same value.
+        async with self._pool.acquire() as conn:
+            r = await conn.fetchrow(
+                "UPDATE crm_contacts SET favorite = NOT favorite, "
+                "updated_at = now(), revision = revision + 1 "
+                "WHERE tenant_id = $1 AND id = $2 RETURNING *",
+                tenant_id, contact_id,
+            )
+        return dict(r) if r else None
 
     async def search(
         self,
@@ -415,6 +432,15 @@ class ContactPatch(_Camel):
     revision: int | None = None  # optional optimistic-lock guard; 409 on mismatch
 
 
+# Columns that are genuinely NULLable in crm_contacts — the only PATCH fields
+# an explicit JSON null may clear.
+_NULLABLE_PATCH_FIELDS = frozenset({
+    "job_title", "company", "website", "address", "linkedin", "facebook",
+    "card_image_uri", "industry", "source", "lead_temperature", "pain_point",
+    "follow_up_date",
+})
+
+
 class ActivityIn(_Camel):
     type: Literal["note", "call", "email", "meeting"]
     content: str = Field(min_length=1, max_length=10_000)
@@ -480,6 +506,9 @@ class ContactCreateOut(ContactDetailOut):
 class FavoriteOut(_Camel):
     id: uuid.UUID
     favorite: bool
+    # Toggling bumps the optimistic-lock revision; clients holding the row
+    # must merge this or their next PATCH would 409 spuriously.
+    revision: int
 
 
 # --------------------------------------------------------------------------
@@ -690,6 +719,15 @@ async def patch_contact(
     tenant_id = _tenant(user)
     updates = body.model_dump(by_alias=False, exclude_unset=True)
     expected_revision = updates.pop("revision", None)
+    # ContactPatch fields are Optional so they can be omitted, but an explicit
+    # JSON null is only meaningful for genuinely nullable columns — anywhere
+    # else it would hit a NOT NULL constraint and 500.
+    for key, value in list(updates.items()):
+        if value is None and key not in _NULLABLE_PATCH_FIELDS:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"{key} cannot be null",
+            )
     if "marketing_consent" in updates and updates["marketing_consent"] is not None:
         updates["marketing_consent"] = _CONSENT_TO_DB[updates["marketing_consent"]]
     if "card_image_uri" in updates:
@@ -742,12 +780,12 @@ async def toggle_favorite(
     repo: ContactRepo = Depends(get_contact_repo),  # noqa: B008
 ) -> FavoriteOut:
     tenant_id = _tenant(user)
-    row = await repo.get(tenant_id, contact_id)
-    if row is None:
+    updated = await repo.toggle_favorite(tenant_id, contact_id)
+    if updated is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="contact not found")
-    updated = await repo.update(tenant_id, contact_id, {"favorite": not row["favorite"]}, None)
-    assert updated is not None  # row existed just above; no concurrent delete path in MVP
-    return FavoriteOut(id=updated["id"], favorite=updated["favorite"])
+    return FavoriteOut(
+        id=updated["id"], favorite=updated["favorite"], revision=updated["revision"]
+    )
 
 
 @router.get("/contacts/{contact_id}/activity", response_model=list[ActivityOut])

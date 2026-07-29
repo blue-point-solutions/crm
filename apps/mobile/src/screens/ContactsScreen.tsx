@@ -253,6 +253,11 @@ export default function ContactsScreen() {
         if (id !== requestSeq.current) return;
         if (mode === "initial") {
           setError(true);
+          // The full-screen ErrorState only shows when the list is empty; if
+          // stale rows from a previous filter are still on screen, say so —
+          // silently keeping them would look like correct filtered results.
+          setItems([]);
+          setTotal(0);
         } else {
           toast.show("Couldn't load contacts. Please try again.", "error");
         }

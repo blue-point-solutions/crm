@@ -252,6 +252,7 @@ def test_import_rejects_bad_mapping() -> None:
         '{"nickname": "fn"}',  # unknown contact field
         '{"firstName": "missing_col"}',  # column not in header
         "{}",
+        '{"firstName": "fn", "name": "fn"}',  # two fields claiming one column
     ):
         resp = client.post("/import", files=_csv_upload(csv_text), data={"mapping": bad})
         assert resp.status_code == 422, bad

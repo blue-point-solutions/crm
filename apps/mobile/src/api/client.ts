@@ -42,22 +42,45 @@ client.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   return config;
 });
 
+// Single-flight refresh: platform-core refresh tokens are single-use with
+// replay detection — if two concurrent 401s each POSTed /auth/refresh with
+// the same token, the second would look like token theft and revoke EVERY
+// session for the user. All concurrent 401 retries must await one shared
+// refresh promise.
+let _refreshInFlight: Promise<boolean> | null = null;
+
+function refreshOnce(): Promise<boolean> {
+  if (!_refreshInFlight) {
+    const token = _refreshToken;
+    _refreshInFlight = axios
+      .post<TokenPair>(`${BASE_URL}/auth/refresh`, { refresh_token: token })
+      .then(({ data }) => {
+        setTokens(data);
+        return true;
+      })
+      .catch(() => {
+        // Only wipe if nothing newer replaced the failed token in the
+        // meantime (a successful concurrent refresh would have).
+        if (_refreshToken === token) clearTokens();
+        return false;
+      })
+      .finally(() => {
+        _refreshInFlight = null;
+      });
+  }
+  return _refreshInFlight;
+}
+
 client.interceptors.response.use(
   (res) => res,
   async (err) => {
     const original = err.config;
     if (err.response?.status === 401 && !original._retry && _refreshToken) {
       original._retry = true;
-      try {
-        const { data } = await axios.post<TokenPair>(
-          `${BASE_URL}/auth/refresh`,
-          { refresh_token: _refreshToken }
-        );
-        setTokens(data);
-        original.headers["Authorization"] = `Bearer ${data.access_token}`;
+      const refreshed = await refreshOnce();
+      if (refreshed && _accessToken) {
+        original.headers["Authorization"] = `Bearer ${_accessToken}`;
         return client(original);
-      } catch {
-        clearTokens();
       }
     }
     return Promise.reject(err);

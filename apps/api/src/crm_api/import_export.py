@@ -212,6 +212,14 @@ def _parse_mapping(raw: str, header: list[str]) -> dict[str, str]:
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"mapped columns not in file header: {missing_columns}",
         )
+    # The mapping is inverted to column→field downstream — two fields claiming
+    # one column would silently drop one of them.
+    if len(set(mapping.values())) != len(mapping):
+        dupes = sorted({c for c in mapping.values() if list(mapping.values()).count(c) > 1})
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"each column may feed only one field; duplicated: {dupes}",
+        )
     if not mapping:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="mapping is empty"

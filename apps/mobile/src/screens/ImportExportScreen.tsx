@@ -110,6 +110,11 @@ export default function ImportExportScreen({ navigation }: Props) {
       setResult(r);
       if (r.imported > 0) {
         toast.show(`Imported ${r.imported} contact${r.imported === 1 ? "" : "s"}`, "success");
+        // Retire the picked file + mapping UI — the server has no import
+        // idempotency, so leaving the button live invites double imports.
+        setFile(null);
+        setPreview(null);
+        setMapping({});
       } else {
         toast.show("Nothing imported — check the errors below.", "error");
       }

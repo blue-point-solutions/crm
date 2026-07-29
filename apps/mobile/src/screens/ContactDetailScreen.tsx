@@ -244,8 +244,9 @@ export default function ContactDetailScreen() {
     const previous = contact.favorite ?? false;
     setContact((prev) => (prev ? { ...prev, favorite: !previous } : prev));
     try {
-      const { favorite } = await toggleFavorite(contactId);
-      setContact((prev) => (prev ? { ...prev, favorite } : prev));
+      const { favorite, revision } = await toggleFavorite(contactId);
+      // Merge revision too — the toggle bumped the optimistic lock server-side.
+      setContact((prev) => (prev ? { ...prev, favorite, revision } : prev));
     } catch {
       setContact((prev) => (prev ? { ...prev, favorite: previous } : prev));
       toast.show("Could not update favorite", "error");
