@@ -10,14 +10,12 @@ import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/types";
 import {
   getBiometricType,
-  storeBiometricToken,
   setBiometricPreference,
 } from "../utils/biometrics";
 
 type Props = NativeStackScreenProps<RootStackParamList, "BiometricConsent">;
 
-export default function BiometricConsentScreen({ navigation, route }: Props) {
-  const { accessToken } = route.params;
+export default function BiometricConsentScreen({ navigation }: Props) {
   const [biometricLabel, setBiometricLabel] = useState("Biometrics");
   const [loading, setLoading] = useState(false);
 
@@ -28,7 +26,8 @@ export default function BiometricConsentScreen({ navigation, route }: Props) {
   async function handleEnable() {
     setLoading(true);
     try {
-      await storeBiometricToken(accessToken);
+      // The session token pair is already persisted in SecureStore by the
+      // login call; enabling biometrics just adds the local unlock gate.
       await setBiometricPreference("enabled");
     } finally {
       setLoading(false);

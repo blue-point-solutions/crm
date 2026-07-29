@@ -13,11 +13,11 @@ import {
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/types";
 import { login } from "../api/auth";
-import { setTokens } from "../api/client";
+import { restoreSession } from "../api/client";
+import { loadSession } from "../api/session";
 import {
   isBiometricAvailable,
   getBiometricType,
-  getBiometricToken,
   getBiometricPreference,
   authenticateWithBiometrics,
 } from "../utils/biometrics";
@@ -42,8 +42,13 @@ export default function LoginScreen({ navigation }: Props) {
       const label = await getBiometricType();
       setBiometricLabel(label);
 
-      const token = await getBiometricToken();
-      if (token) {
+      // Biometric quick-unlock is offered when the user opted in AND a
+      // persisted session exists to unlock.
+      const [preference, session] = await Promise.all([
+        getBiometricPreference(),
+        loadSession(),
+      ]);
+      if (preference === "enabled" && session) {
         setBiometricEnrolled(true);
       }
     })();
@@ -61,9 +66,7 @@ export default function LoginScreen({ navigation }: Props) {
 
       if (available && preference === null) {
         // First login — ask the user to opt in (separate explicit consent)
-        navigation.replace("BiometricConsent", {
-          accessToken: tokens.access_token,
-        });
+        navigation.replace("BiometricConsent");
       } else {
         navigation.replace("Dashboard");
       }
@@ -84,14 +87,13 @@ export default function LoginScreen({ navigation }: Props) {
         return;
       }
 
-      const storedToken = await getBiometricToken();
-      if (!storedToken) {
-        setError("No stored credential found. Please sign in with your password.");
+      // Biometrics passed — unlock the persisted session (full token pair,
+      // so the 401-refresh path keeps working after the access token expires).
+      const restored = await restoreSession();
+      if (!restored) {
+        setError("No stored session found. Please sign in with your password.");
         return;
       }
-
-      // Restore the locally stored token into the in-memory API client
-      setTokens({ access_token: storedToken, refresh_token: "", token_type: "bearer" });
       navigation.replace("Dashboard");
     } catch {
       setError("Biometric authentication failed. Please sign in with your password.");

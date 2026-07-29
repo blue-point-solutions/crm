@@ -12,5 +12,5 @@ export type RootStackParamList = {
   CardScannerContactDetails: { draft: ContactDraft };
   CardScannerConfirm: undefined;
   ContactDetail: { contactId: string };
-  BiometricConsent: { accessToken: string };
+  BiometricConsent: undefined;
 };
