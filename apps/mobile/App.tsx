@@ -2,9 +2,24 @@ import { StatusBar } from "expo-status-bar";
 import { useFonts } from "expo-font";
 import { View, ActivityIndicator } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { Platform } from "react-native";
+import * as Notifications from "expo-notifications";
 import RootNavigator from "./src/navigation/RootNavigator";
 import { ToastProvider } from "./src/components";
 import UpdateGate from "./src/update/UpdateGate";
+
+// Without a handler, a follow-up reminder firing while the app is open is
+// silently dropped — and 9am with the CRM open is the likeliest overlap.
+if (Platform.OS !== "web") {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowBanner: true,
+      shouldShowList: true,
+      shouldPlaySound: false,
+      shouldSetBadge: false,
+    }),
+  });
+}
 
 export default function App() {
   const [fontsLoaded] = useFonts({
