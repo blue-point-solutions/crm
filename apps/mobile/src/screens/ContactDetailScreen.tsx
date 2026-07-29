@@ -20,6 +20,10 @@ import {
 } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import axios from "axios";
+import {
+  cancelFollowUpReminder,
+  scheduleFollowUpReminder,
+} from "../utils/reminders";
 import { RootStackParamList } from "../navigation/types";
 import {
   Activity,
@@ -239,6 +243,32 @@ export default function ContactDetailScreen() {
     setEditMode(true);
   }
 
+  // Quick-action auto-log (engagement QoL): after opening the dialer/mail/
+  // chat app, offer a one-tap log so lastActivityDate stays truthful.
+  const [pendingLog, setPendingLog] = useState<{
+    type: "call" | "email" | "note";
+    label: string;
+    content: string;
+  } | null>(null);
+
+  function quickAction(url: string, log: NonNullable<typeof pendingLog>) {
+    Linking.openURL(url)
+      .then(() => setPendingLog(log))
+      .catch(() => Alert.alert("Cannot open link", url));
+  }
+
+  async function handleLogQuickAction() {
+    if (!pendingLog) return;
+    try {
+      await logActivity(contactId, pendingLog.type, pendingLog.content);
+      setPendingLog(null);
+      toast.show("Logged", "success");
+      fetchContact();
+    } catch {
+      toast.show("Couldn't log the activity", "error");
+    }
+  }
+
   async function handleToggleFavorite() {
     if (!contact) return;
     const previous = contact.favorite ?? false;
@@ -328,6 +358,17 @@ export default function ContactDetailScreen() {
       setContact(updated);
       setEditMode(false);
       toast.show("Contact saved", "success");
+      if ("followUpDate" in patch) {
+        if (updated.followUpDate) {
+          scheduleFollowUpReminder(
+            contactId,
+            `${updated.firstName} ${updated.lastName}`.trim(),
+            updated.followUpDate
+          );
+        } else {
+          cancelFollowUpReminder(contactId);
+        }
+      }
     } catch (err) {
       if (axios.isAxiosError(err) && err.response?.status === 409) {
         toast.show("Contact changed elsewhere — reloaded", "error");
@@ -366,6 +407,7 @@ export default function ContactDetailScreen() {
     setDeleting(true);
     try {
       await deleteContact(contactId);
+      cancelFollowUpReminder(contactId);
       setConfirmDeleteVisible(false);
       toast.show("Contact deleted", "success");
       navigation.goBack();
@@ -455,21 +497,39 @@ export default function ContactDetailScreen() {
               <QuickAction
                 icon="call-outline"
                 label="Call"
-                onPress={() => openUrl(`tel:${contact.phones[0]}`)}
+                onPress={() =>
+                  quickAction(`tel:${contact.phones[0]}`, {
+                    type: "call",
+                    label: "call",
+                    content: `Called ${contact.firstName}`.trim(),
+                  })
+                }
               />
             )}
             {contact.emails.length > 0 && (
               <QuickAction
                 icon="mail-outline"
                 label="Email"
-                onPress={() => openUrl(`mailto:${contact.emails[0]}`)}
+                onPress={() =>
+                  quickAction(`mailto:${contact.emails[0]}`, {
+                    type: "email",
+                    label: "email",
+                    content: `Emailed ${contact.firstName}`.trim(),
+                  })
+                }
               />
             )}
             {contact.phones.length > 0 && (
               <QuickAction
                 icon="chatbubble-outline"
                 label="SMS"
-                onPress={() => openUrl(`sms:${contact.phones[0]}`)}
+                onPress={() =>
+                  quickAction(`sms:${contact.phones[0]}`, {
+                    type: "note",
+                    label: "text",
+                    content: `Sent an SMS to ${contact.firstName}`.trim(),
+                  })
+                }
               />
             )}
             {contact.phones.length > 0 && (
@@ -477,7 +537,11 @@ export default function ContactDetailScreen() {
                 icon="logo-whatsapp"
                 label="WhatsApp"
                 onPress={() =>
-                  openUrl(`https://wa.me/${contact.phones[0].replace(/\D/g, "")}`)
+                  quickAction(`https://wa.me/${contact.phones[0].replace(/\D/g, "")}`, {
+                    type: "note",
+                    label: "WhatsApp message",
+                    content: `Messaged ${contact.firstName} on WhatsApp`.trim(),
+                  })
                 }
               />
             )}
@@ -489,6 +553,27 @@ export default function ContactDetailScreen() {
               />
             ) : null}
           </View>
+          {pendingLog && (
+            <View style={styles.logBanner}>
+              <Text style={styles.logBannerText}>Log this {pendingLog.label}?</Text>
+              <TouchableOpacity
+                onPress={handleLogQuickAction}
+                accessibilityRole="button"
+                accessibilityLabel={`Log this ${pendingLog.label}`}
+                style={styles.logBannerBtn}
+              >
+                <Text style={styles.logBannerAction}>Log</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setPendingLog(null)}
+                accessibilityRole="button"
+                accessibilityLabel="Dismiss"
+                style={styles.logBannerBtn}
+              >
+                <Ionicons name="close" size={16} color={colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
 
         {/* ── Contact Info ────────────────────────────────────────────────── */}
@@ -833,6 +918,23 @@ export default function ContactDetailScreen() {
 // ─── Styles ────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
+  logBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    marginTop: spacing.md,
+    backgroundColor: colors.surfaceAlt,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  logBannerText: { flex: 1, fontSize: type.size.caption + 1, color: colors.text },
+  logBannerAction: {
+    color: colors.primary,
+    fontWeight: "700",
+    fontSize: type.size.caption + 1,
+  },
+  logBannerBtn: { minHeight: 32, justifyContent: "center", paddingHorizontal: 6 },
   container: {
     flex: 1,
     backgroundColor: colors.background,
