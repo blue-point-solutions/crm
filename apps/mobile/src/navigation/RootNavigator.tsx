@@ -12,6 +12,7 @@ import CardScannerContactDetailsScreen from "../screens/CardScannerContactDetail
 import CardScannerConfirmScreen from "../screens/CardScannerConfirmScreen";
 import ContactsScreen from "../screens/ContactsScreen";
 import ImportExportScreen from "../screens/ImportExportScreen";
+import PipelineScreen from "../screens/PipelineScreen";
 import ContactDetailScreen from "../screens/ContactDetailScreen";
 import DashboardScreen from "../screens/DashboardScreen";
 import BiometricConsentScreen from "../screens/BiometricConsentScreen";
@@ -62,6 +63,7 @@ export default function RootNavigator() {
         <Stack.Screen name="Dashboard" component={DashboardScreen} />
         <Stack.Screen name="Contacts" component={ContactsScreen} />
         <Stack.Screen name="ImportExport" component={ImportExportScreen} />
+        <Stack.Screen name="Pipeline" component={PipelineScreen} />
         <Stack.Screen name="CardScanner" component={CardScannerScreen} />
         <Stack.Screen name="CameraPermission" component={CameraPermissionScreen} />
         <Stack.Screen name="CardScannerReview" component={CardScannerReviewScreen} />
