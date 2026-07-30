@@ -31,6 +31,34 @@ export async function parseCardImage(imageUri: string): Promise<OcrResult> {
   return scanCard(expoTextExtractor, imageUri);
 }
 
+// ML Kit's text model is Play-delivered; on devices where GMS can't fetch it
+// the extract call never settles (2026-07-30 emulator finding), so analysis
+// must be bounded before the review screen can fall back to manual entry.
+export const OCR_TIMEOUT_MS = 15_000;
+
+/**
+ * `parseCardImage` bounded by a timeout and an error guard: resolves `null`
+ * (never rejects) when the card can't be analysed, so callers can fall back
+ * to manual entry instead of spinning forever.
+ */
+export async function parseCardImageSafe(
+  imageUri: string,
+  timeoutMs: number = OCR_TIMEOUT_MS
+): Promise<OcrResult | null> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const timeout = new Promise<null>((resolve) => {
+      timer = setTimeout(() => resolve(null), timeoutMs);
+    });
+    return await Promise.race([parseCardImage(imageUri), timeout]);
+  } catch (err) {
+    console.warn("[ocr] card analysis failed", err);
+    return null;
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+  }
+}
+
 function mockCardResult(): OcrResult {
   return {
     firstName: { value: "Jane", confidence: 0.95 },

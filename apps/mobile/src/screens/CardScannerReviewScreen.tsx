@@ -15,7 +15,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/types";
-import { parseCardImage } from "../utils/ocr";
+import { parseCardImageSafe } from "../utils/ocr";
 import { deleteCardImage } from "../utils/cardImage";
 import { OcrResult, ContactDraft } from "../types/contact";
 
@@ -86,6 +86,7 @@ export default function CardScannerReviewScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
 
   const [ocr, setOcr] = useState<OcrResult | null>(null);
+  const [ocrFailed, setOcrFailed] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [imageModalVisible, setImageModalVisible] = useState(false);
 
@@ -116,8 +117,15 @@ export default function CardScannerReviewScreen({ navigation, route }: Props) {
 
   useEffect(() => {
     let cancelled = false;
-    parseCardImage(imageUri).then((result) => {
+    parseCardImageSafe(imageUri).then((result) => {
       if (cancelled) return;
+      if (!result) {
+        // Analysis timed out or errored (e.g. ML Kit model unavailable) —
+        // drop to manual entry rather than spinning forever.
+        setOcrFailed(true);
+        setIsLoading(false);
+        return;
+      }
       setOcr(result);
       setDraft((d) => ({
         ...d,
@@ -228,8 +236,20 @@ export default function CardScannerReviewScreen({ navigation, route }: Props) {
           </Text>
         )}
 
+        {/* OCR failure → manual entry */}
+        {ocrFailed && (
+          <View style={styles.ocrFailedBanner}>
+            <Text style={styles.ocrFailedText}>
+              We couldn't read this card automatically. Enter the details
+              manually below — the card photo is still attached.
+            </Text>
+          </View>
+        )}
+
         {/* OCR Section */}
-        <Text style={styles.sectionTitle}>Extracted Details</Text>
+        <Text style={styles.sectionTitle}>
+          {ocrFailed ? "Contact Details" : "Extracted Details"}
+        </Text>
 
         <LowConfidenceField
           label="First Name"
@@ -371,6 +391,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   duplicateBtnText: { fontSize: 13, color: "#856404", fontWeight: "600" },
+
+  ocrFailedBanner: {
+    backgroundColor: "#fdecea",
+    borderWidth: 1,
+    borderColor: "#e74c3c",
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+  },
+  ocrFailedText: { fontSize: 14, color: "#8c2f24" },
 
   toggleRow: {
     flexDirection: "row",

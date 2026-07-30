@@ -63,9 +63,21 @@ export async function scheduleFollowUpReminder(
         channelId: CHANNEL_ID,
       },
     });
-    return true;
-  } catch {
-    return false; // reminders are best-effort, never block a save
+    // A resolved schedule call is not proof the OS registered the alarm
+    // (2026-07-30 e2e finding: suspected silent no-op in the release build)
+    // — read the store back so a drop is a visible `false`, not a phantom
+    // success.
+    const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+    const registered = scheduled.some((n) => n.identifier === contactId);
+    if (!registered) {
+      console.warn(`[reminders] OS did not register follow-up reminder for contact ${contactId}`);
+    }
+    return registered;
+  } catch (err) {
+    // Reminders are best-effort and never block a save, but the failure has
+    // to be observable (no contact PII in the log — id only).
+    console.warn(`[reminders] failed to schedule follow-up for contact ${contactId}`, err);
+    return false;
   }
 }
 
