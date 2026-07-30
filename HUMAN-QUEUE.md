@@ -36,19 +36,26 @@ workaround inside Semaphore:
   unaffected. Note other PH gateways (PhilSMS/iTexMo) enforce the same
   telco-level sender-ID registration — switching providers doesn't dodge this.
 
-## 4. Local KVM for emulator verification (one command)
-The Android emulator on this machine can't use hardware acceleration — user
-`sigbin` isn't in the `kvm` group, and agents have no passwordless sudo. Run:
-`sudo usermod -aG kvm sigbin` then restart the WSL session. Until then agents
-fall back to painfully slow software emulation for APK smoke tests.
+## 4. Local KVM for emulator verification — DONE 2026-07-30
+`sigbin` is in the `kvm` group and `/dev/kvm` is accessible after the WSL
+restart; emulator boots in under a minute. Closed.
 
-## 5. Device-test v1.1.0 (versionCode 3) on a fleet A15
-v3 carries the full backend wiring + redesign. Once published: on a phone with
-v2 installed, open the app → update prompt → download → OS installer →
-relaunch → sign in → confirm Dashboard/Contacts show live data and a scanned
-card saves. Also exercises the self-update loop end-to-end (STATE.md item).
-Real-device checks agents can't do: camera scan → ML Kit OCR on a physical
-card, biometric unlock, SMS quick action via SIM.
+## 5. QA device pass of v1.2.0 (versionCode 4) on a fleet A15
+The emulator pass ran 2026-07-30 (40 Pass / 7 Blocked / 9 device-only — all
+statuses + notes are in `docs/test-matrix.xlsx`). QA should run the 9
+Device-marked cases plus re-check the 7 Blocked ones:
+- Update loop: install v2 or v3 → update prompt to v4 → sha-verified download
+  → OS installer → relaunch (UPD-01/03/04).
+- Camera scan of a real card → ML Kit OCR (SCAN-02, and the emulator-blocked
+  SCAN-03..08 flow through Review/consent/save/R2). NOTE: on any device where
+  Play services can't fetch the ML Kit OCR module the scanner hangs forever on
+  "Analysing card…" (bug found in the emulator pass, see matrix).
+- Biometric unlock (AUTH-08), call + SIM-SMS quick actions (QA-01/03).
+- **Reminders (REM-02/03) — extra care**: the emulator pass could NOT confirm
+  a follow-up reminder is ever actually scheduled even with notification
+  permission granted (suspect silent no-op in the release build). If no
+  notification fires at 9am on the follow-up day, file it as a v1.2.0 bug.
+- Cold start ≤ ~4s (NF-01).
 
 ## 6. erp repo access + real CI (billing/seat issue — from turnover doc)
 Sid's account can't see rinehardramos/erp / blue-point-solutions/erp
