@@ -40,21 +40,23 @@ workaround inside Semaphore:
 `sigbin` is in the `kvm` group and `/dev/kvm` is accessible after the WSL
 restart; emulator boots in under a minute. Closed.
 
-## 5. QA device pass of v1.2.0 (versionCode 4) on a fleet A15
-The emulator pass ran 2026-07-30 (40 Pass / 7 Blocked / 9 device-only — all
-statuses + notes are in `docs/test-matrix.xlsx`). QA should run the 9
-Device-marked cases plus re-check the 7 Blocked ones:
-- Update loop: install v2 or v3 → update prompt to v4 → sha-verified download
+## 5. QA device pass of v1.2.1 (versionCode 5) on a fleet A15
+The emulator pass ran 2026-07-30 against v4 (40 Pass / 7 Blocked / 9
+device-only — statuses + notes in `docs/test-matrix.xlsx`); both v4 findings
+were fixed in v5 (PR #65, published 2026-07-31). QA should run the 9
+Device-marked cases plus re-check the 7 Blocked ones **on v5**:
+- Update loop: install v2/v3/v4 → update prompt to v5 → sha-verified download
   → OS installer → relaunch (UPD-01/03/04).
 - Camera scan of a real card → ML Kit OCR (SCAN-02, and the emulator-blocked
-  SCAN-03..08 flow through Review/consent/save/R2). NOTE: on any device where
-  Play services can't fetch the ML Kit OCR module the scanner hangs forever on
-  "Analysing card…" (bug found in the emulator pass, see matrix).
+  SCAN-03..08 flow through Review/consent/save/R2). v5 fix: where ML Kit can't
+  deliver, the scanner now gives up after ~15s and drops to manual entry with
+  a banner — if it still hangs on "Analysing card…", file it.
 - Biometric unlock (AUTH-08), call + SIM-SMS quick actions (QA-01/03).
-- **Reminders (REM-02/03) — extra care**: the emulator pass could NOT confirm
-  a follow-up reminder is ever actually scheduled even with notification
-  permission granted (suspect silent no-op in the release build). If no
-  notification fires at 9am on the follow-up day, file it as a v1.2.0 bug.
+- **Reminders (REM-02/03) — extra care**: v5 declares SCHEDULE_EXACT_ALARM and
+  verifies the OS registered the reminder (failures now warn in logcat, tag
+  `[reminders]`). Set a follow-up for tomorrow, grant notification permission,
+  and confirm a notification fires at 9am on the follow-up day. If not, file
+  it as a v1.2.1 bug and attach any `[reminders]` logcat lines.
 - Cold start ≤ ~4s (NF-01).
 
 ## 6. erp repo access + real CI (billing/seat issue — from turnover doc)

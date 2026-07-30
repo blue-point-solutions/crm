@@ -96,13 +96,11 @@ APK distribution + in-app self-update (2026-07-28).
   PUT 200 to R2 → public URL 200.
 
 ## Next
-- Fix the two v1.2.0 findings from the emulator pass (see 2026-07-30 session):
-  scanner infinite "Analysing card…" (add timeout → manual-entry fallback, or
-  bundle the ML Kit model) and the suspect never-scheduled follow-up reminder
-  (reproduce in a unit/integration test around expo-notifications SDK 56 DATE
-  trigger; the silent try/catch masks failures).
-- QA device pass of v4 on a fleet A15 (HUMAN-QUEUE §5) — 9 Device cases + 7
-  emulator-Blocked cases in docs/test-matrix.xlsx.
+- QA device pass of v5 (1.2.1) on a fleet A15 (HUMAN-QUEUE §5) — 9 Device
+  cases + 7 emulator-Blocked cases in docs/test-matrix.xlsx; REM-02/03 and
+  SCAN-03 re-test against the v1.2.1 fixes.
+- Minor QoL from the emulator pass: Contacts sort control (server supports
+  ?sort=), dashboard refetch on resume-from-background.
 - Offline sync (docs/05-api.md POST /sync/push, GET /sync/pull) — the one
   Phase-1 contract item deliberately not built this pass; needs a joint look
   at platform-kiosk-offline vs crm PR #35's AsyncStorage stand-in shape.
@@ -200,6 +198,30 @@ APK distribution + in-app self-update (2026-07-28).
   tenant after (contacts have DELETE; deals need psql on box).
 - docs/test-matrix.xlsx created (56 cases, Env column marks Emulator vs
   Device) — QA guide for the real-device pass.
+
+## 2026-07-31 session — v1.2.0 findings fixed, v1.2.1 (versionCode 5) published
+- PR #65 squash-merged (agent code review: no blocking findings; raw-error-object
+  logging hardened to message-only on review note). Fixes:
+  1. Scanner hang: new `parseCardImageSafe` (15s timeout + catch, never rejects);
+     CardScannerReviewScreen falls back to manual entry with a banner when ML Kit
+     can't deliver. 3 new tests.
+  2. Reminders: `android.permission.SCHEDULE_EXACT_ALARM` added to app.json (Expo
+     v56 docs require manual declaration for exact DATE triggers on Android 12+;
+     config plugin doesn't add it — verified in the built AndroidManifest.xml);
+     scheduleFollowUpReminder now reads the OS store back after scheduling
+     (getAllScheduledNotificationsAsync) and returns false + warn-logs (id only,
+     no PII) instead of phantom success; catch no longer silent. 8 new tests, incl.
+     validating our trigger against the REAL expo-notifications SDK 56
+     parseTrigger (jest.requireActual) — JS-side shape confirmed valid, so the
+     emulator no-op was native-side; on-device confirmation rides HUMAN-QUEUE §5.
+- Gates: tsc --noEmit clean, jest 46/46 (was 35).
+- Evidence: 2026-07-31 · v1.2.1 (versionCode 5) release ·
+  https://apk.bpconnect.app/update.json serves versionCode 5 / 1.2.1; published
+  app-v5.apk sha256 matches local + manifest (6c10f09a…);
+  bpconnect-crm-latest.apk sha matches; `api.bpconnect.app/health` ok; baked
+  `api.bpconnect.app` URL confirmed inside the APK's JS bundle; versionCode 5 /
+  versionName 1.2.1 in built gradle config. Debug-keystore signing unchanged
+  (HUMAN-QUEUE §2) — publish from this machine only.
 
 ## Phase 2 — increments 2–4 + release (2026-07-29)
 - Mobile deals shipped in three reviewed PRs (#60 deal card on ContactDetail,
