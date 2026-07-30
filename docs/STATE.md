@@ -96,12 +96,13 @@ APK distribution + in-app self-update (2026-07-28).
   PUT 200 to R2 → public URL 200.
 
 ## Next
-- Merge PR #57 (feat/notify-wiring → main) once its review comes back clean;
-  publish v1.1.0 (versionCode 3) via `BUMP=0 bash scripts/release-apk.sh` after
-  the emulator smoke test of the release build (R8 is newly enabled — verify
-  the minified build boots before the fleet sees it).
-- Device-test v3 on a fleet A15 (HUMAN-QUEUE §5) — update loop + camera OCR +
-  biometric unlock on real hardware.
+- Fix the two v1.2.0 findings from the emulator pass (see 2026-07-30 session):
+  scanner infinite "Analysing card…" (add timeout → manual-entry fallback, or
+  bundle the ML Kit model) and the suspect never-scheduled follow-up reminder
+  (reproduce in a unit/integration test around expo-notifications SDK 56 DATE
+  trigger; the silent try/catch masks failures).
+- QA device pass of v4 on a fleet A15 (HUMAN-QUEUE §5) — 9 Device cases + 7
+  emulator-Blocked cases in docs/test-matrix.xlsx.
 - Offline sync (docs/05-api.md POST /sync/push, GET /sync/pull) — the one
   Phase-1 contract item deliberately not built this pass; needs a joint look
   at platform-kiosk-offline vs crm PR #35's AsyncStorage stand-in shape.
@@ -111,8 +112,8 @@ APK distribution + in-app self-update (2026-07-28).
 
 ## Blockers
 - None mechanical. Human gates in HUMAN-QUEUE.md: token expiry 2026-08-25,
-  release keystore, Semaphore sender name, kvm group, v3 device test,
-  erp access/CI billing, grocery hostname.
+  release keystore, Semaphore sender name, v4 QA device pass (§5),
+  erp access/CI billing, grocery hostname. (kvm §4 closed 2026-07-30.)
 
 ## 2026-07-29 session close
 - PR #57 squash-merged to main after agent code review (8 findings fixed —
@@ -142,6 +143,63 @@ APK distribution + in-app self-update (2026-07-28).
 - Next increments: contact-detail deal card + start-deal (mobile), pipeline
   board screen, auto-log quick actions + local follow-up notifications,
   tags management. Placement of #37 in crm/apps/api flagged for Sid.
+
+## 2026-07-30 session — emulator e2e of v4 COMPLETE (post-WSL-restart)
+- KVM live after restart (HUMAN-QUEUE §4 closed); AVD spike35 boots <1 min.
+  Emulator DNS was dead under WSL2 — relaunch with `-dns-server 8.8.8.8` and
+  `cmd wifi connect-network AndroidWifi open` fixed it (last session's
+  "unconfirmed register" never reached the server; network was down).
+- Full matrix pass against live api.bpconnect.app: **40 Pass / 7 Blocked / 9
+  device-only** — statuses + notes written into docs/test-matrix.xlsx.
+  Highlights: R8 v4 build exercised across every screen (SEC-03); auth incl.
+  cold-start restore + expired-token single-flight refresh (AUTH-06/07);
+  CD 409 → "Contact changed elsewhere — reloaded"; deals e2e incl. comma-peso
+  parse, server-driven transitions, 409 allowedTransitions, lost-confirm,
+  no-dup-on-offline-retry; pipeline rollups/repaint/empty; import preview→2
+  imported; export formula-injection-safe; cleartext off; no JWT outside
+  SecureStore; offline error+retry sweep.
+- **Findings (new bugs/gaps)**:
+  1. Scanner: ML Kit text model is Play-delivered (unbundled) — where GMS
+     can't fetch it the app hangs forever on "Analysing card…" with no
+     timeout/error/manual fallback (SCAN-03 note; blocked SCAN-04..08 on
+     emulator). Consider bundled ML Kit model or a timeout → manual entry.
+  2. Reminders: could NOT confirm scheduleFollowUpReminder ever registers a
+     notification (no expo store, no alarm) even after permission grant +
+     date change — suspect silent no-op in release build (try/catch masks
+     it). REM-02/03 flagged for QA device pass (HUMAN-QUEUE §5).
+  3. Minor: no sort control in Contacts UI (server supports ?sort=);
+     resume-from-background doesn't refetch dashboard (nav focus does).
+- e2e data cleaned from shared tenant: 29 contacts DELETEd via API (activity
+  cascaded), 4 deal jobs removed via psql on grocery-db-1 (tables at 0).
+  e2e account e2e-emu-1785412955@bluepointsolutions.dev kept for reuse
+  (creds in .e2e-emu/e2e-email.txt; no account-delete API).
+- Handoff: QA runs the 9 Device cases + re-checks 7 Blocked on a fleet A15
+  per HUMAN-QUEUE §5 (rewritten with the reminder + scanner cautions).
+
+## 2026-07-30 session — emulator e2e of v4 (superseded resume notes)
+- Goal: emulated e2e of app-v4.apk against live api.bpconnect.app; on pass,
+  hand APK to QA for real-device testing (supersedes agent device-test item;
+  HUMAN-QUEUE §5 checklist still applies to QA).
+- Done so far (software emulation, no KVM): AVD spike35 resized (4096M RAM,
+  720x1280 — 1536M caused system_server watchdog kill-loop); app-v4.apk
+  installed; **R8 release build boots to Login** (STATE Next item "verify
+  minified build boots" = verified); register form filled + submitted, live
+  register POST result unconfirmed at restart time. Local app-v4.apk sha256
+  matches published update.json (bdd20be1…).
+- Emulator QoL applied on the AVD: hide_error_dialogs=1, disabled
+  wellbeing/quicksearchbox/vending (ANR storm under TCG), animations off.
+- **User added to kvm group (done, pending WSL restart)** — HUMAN-QUEUE §4
+  closes after restart. WSL restart queued behind grocery assembleRelease.
+- Resume protocol (fresh session after restart): read `.e2e-emu/` (gitignored)
+  — ui.sh adb driver (tap-by-text/content-desc, LAST-match default because RN
+  repeats title+button labels), screenshots 01–09, e2e-email.txt (account may
+  already exist server-side — delete or reuse). Relaunch: `emulator -avd
+  spike35 -no-window -no-audio -no-snapshot` (NO -wipe-data: APK + tweaks
+  persist; KVM should now engage → boot <1 min). Then rerun full e2e per
+  docs/test-matrix.xlsx emulator-marked cases; clean e2e rows from shared
+  tenant after (contacts have DELETE; deals need psql on box).
+- docs/test-matrix.xlsx created (56 cases, Env column marks Emulator vs
+  Device) — QA guide for the real-device pass.
 
 ## Phase 2 — increments 2–4 + release (2026-07-29)
 - Mobile deals shipped in three reviewed PRs (#60 deal card on ContactDetail,

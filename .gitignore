@@ -35,3 +35,4 @@ test-results/
 
 # APK publish dir (binaries; filled by scripts/release-apk.sh)
 apk-dist/
+.e2e-emu/
