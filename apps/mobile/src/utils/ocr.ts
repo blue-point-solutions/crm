@@ -52,7 +52,10 @@ export async function parseCardImageSafe(
     });
     return await Promise.race([parseCardImage(imageUri), timeout]);
   } catch (err) {
-    console.warn("[ocr] card analysis failed", err);
+    console.warn(
+      "[ocr] card analysis failed:",
+      err instanceof Error ? err.message : String(err)
+    );
     return null;
   } finally {
     if (timer !== undefined) clearTimeout(timer);

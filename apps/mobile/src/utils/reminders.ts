@@ -76,7 +76,10 @@ export async function scheduleFollowUpReminder(
   } catch (err) {
     // Reminders are best-effort and never block a save, but the failure has
     // to be observable (no contact PII in the log — id only).
-    console.warn(`[reminders] failed to schedule follow-up for contact ${contactId}`, err);
+    console.warn(
+      `[reminders] failed to schedule follow-up for contact ${contactId}:`,
+      err instanceof Error ? err.message : String(err)
+    );
     return false;
   }
 }
