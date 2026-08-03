@@ -83,3 +83,7 @@ can do it) or add infobroker.tech as a second zone. Then tell the agent.
   presigned GET URLs (PUT is already presigned) so photos aren't world-readable by UUID.
 - App-level PII field encryption + device-export encryption are being done in code (task #6);
   the above are the host/infra pieces only a human can perform.
+
+> NOTE: crm shares the unencrypted `grocery-db` on 194.233.76.189 with grocery.
+> The block-volume LUKS runbook lives at `~/projects/grocery/docs/security/ENCRYPTION-AT-REST.md`
+> and covers this DB for BOTH projects. crm app-level PII field encryption is task #6.
