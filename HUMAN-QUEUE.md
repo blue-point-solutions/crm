@@ -73,3 +73,13 @@ routed (api/apk.bpconnect.app). Grocery's storefront still has
 `grocery.infobroker.tech` URLs **baked at build time**. Decide: route grocery
 under bpconnect.app (needs a storefront rebuild with new public URLs — an agent
 can do it) or add infobroker.tech as a second zone. Then tell the agent.
+
+## Encryption-at-rest — infra (needs box/host access; queued 2026-08-04)
+- **Encrypt the Postgres data volume at rest** (Contabo host): put `/var/lib/postgresql/data`
+  (shared `grocery-db`) on a LUKS/dm-crypt encrypted block device, OR migrate to a managed
+  Postgres with at-rest encryption. Covers ALL CRM PII + money in one control. Highest leverage.
+- **Encrypt DB backups** (`pg_dump` → age/gpg); rotate the trivial dev creds (`crm/crm`).
+- **Card images**: switch card image delivery from the permanent PUBLIC R2 URL to short-lived
+  presigned GET URLs (PUT is already presigned) so photos aren't world-readable by UUID.
+- App-level PII field encryption + device-export encryption are being done in code (task #6);
+  the above are the host/infra pieces only a human can perform.
