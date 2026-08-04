@@ -147,6 +147,17 @@ APK distribution + in-app self-update (2026-07-28).
   infra config, not in repo). Headless UI e2e vs live app: presign 200 → R2
   PUT 200 → contact stores pub-…r2.dev URL → ContactDetail <img> renders
   (naturalWidth > 0) → QA contact deleted (204).
+- 2026-08-05 · NATIVE card-image upload was broken too (different cause) ·
+  RN fetch can't read file:// on Android — uploadCardImage's silent catch
+  dropped every native card image (emulator A/B vs live API, checked via
+  GET /contacts/{id} — the LIST endpoint omits cardImageUri, beware false
+  negatives). Fix #72: native reads via expo-file-system File (Blob per v56
+  docs), web keeps fetch(blob:); failure paths now warn. jest 57/57.
+- 2026-08-05 · v1.2.2 (versionCode 6) published · update.json serves
+  versionCode 6 / 1.2.2, sha256 fa870b18… matches local; PUBLISHED APK
+  re-verified on emulator: scan→save → cardImageUri stored, r2.dev URL
+  serves image/jpeg 200; QA contacts cleaned (204). Debug-keystore signing
+  unchanged (HUMAN-QUEUE §2).
 
 ## Next
 - QA device pass of v5 (1.2.1) on a fleet A15 (HUMAN-QUEUE §5) — 9 Device

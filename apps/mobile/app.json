@@ -2,7 +2,7 @@
   "expo": {
     "name": "BP Connect",
     "slug": "sidabuel-bp-project",
-    "version": "1.2.1",
+    "version": "1.2.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -24,7 +24,7 @@
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.bluepointsolutions.crm",
-      "versionCode": 5,
+      "versionCode": 6,
       "permissions": [
         "android.permission.REQUEST_INSTALL_PACKAGES",
         "android.permission.CAMERA",
