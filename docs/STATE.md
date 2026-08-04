@@ -132,6 +132,13 @@ APK distribution + in-app self-update (2026-07-28).
   serves immutable. NOTE: #67's squash also carried two previously
   local-only docs commits (782384b, 025895c HUMAN-QUEUE encryption items) —
   local main was reset to origin/main after verifying content-identical.
+- Process fix from that note: AGENTS.md work-rule 8 (#69) — never commit to
+  local main; every change (docs included) merges via its own PR branch.
+- 2026-08-05 · headless local e2e · Docker Desktop restored on this machine;
+  `docker compose up -d postgres` (local :5433) + uvicorn crm_api on :8001 +
+  `PW_HEADLESS=1 npx playwright test` → happy path 1/1 green in 13.2s
+  (register → card upload → review → save, fully local stack, main @48fb82a).
+  Local api/postgres stopped after; e2e rows live only in the local volume.
 
 ## Next
 - QA device pass of v5 (1.2.1) on a fleet A15 (HUMAN-QUEUE §5) — 9 Device
