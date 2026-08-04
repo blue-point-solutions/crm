@@ -31,6 +31,7 @@ REMOTE="${REMOTE_DIR:-/home/deploy/factory}"
 SSHOPT=(-i "$KEY" -o IdentitiesOnly=yes -o BatchMode=yes)
 
 mkdir -p apk-dist   # APK publish dir (release-apk.sh fills it); must exist for the mount
+mkdir -p web-dist   # web app publish dir (release-web.sh fills it); must exist for the mount
 
 echo "==> [1/4] sync crm + library to $HOST:$REMOTE"
 ssh "${SSHOPT[@]}" "$HOST" "mkdir -p $REMOTE/crm $REMOTE/library && docker network inspect shared-db >/dev/null 2>&1 || docker network create shared-db"
@@ -52,6 +53,6 @@ ssh "${SSHOPT[@]}" "$HOST" "cd $REMOTE/crm && docker compose -f docker-compose.c
 
 echo "==> [4/4] smoke check"
 sleep 5
-ssh "${SSHOPT[@]}" "$HOST" "cd $REMOTE/crm && docker compose -f docker-compose.contabo.yml ps --format '{{.Name}}: {{.Status}}' && curl -fsS -m 10 http://localhost:8000/health && curl -fsS -m 10 -o /dev/null -w ' apk:%{http_code}' http://localhost:8081/"
+ssh "${SSHOPT[@]}" "$HOST" "cd $REMOTE/crm && docker compose -f docker-compose.contabo.yml ps --format '{{.Name}}: {{.Status}}' && curl -fsS -m 10 http://localhost:8000/health && curl -fsS -m 10 -o /dev/null -w ' apk:%{http_code}' http://localhost:8081/ && curl -fsS -m 10 -o /dev/null -w ' web:%{http_code}' http://localhost:8083/"
 echo
-echo "✓ deployed — https://api.bpconnect.app / https://apk.bpconnect.app"
+echo "✓ deployed — https://api.bpconnect.app / https://apk.bpconnect.app / https://app.bpconnect.app"

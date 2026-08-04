@@ -25,7 +25,11 @@ const expoTextExtractor: TextExtractorPort = {
 
 export async function parseCardImage(imageUri: string): Promise<OcrResult> {
   if (!isSupported) {
-    return mockCardResult();
+    // Dev-only mock keeps the RN-Web dev flow and Playwright e2e exercisable.
+    // In production (web app) fabricated OCR data must never prefill a real
+    // user's form — throw so parseCardImageSafe drops to manual entry.
+    if (__DEV__) return mockCardResult();
+    throw new Error("on-device OCR is not available on this platform");
   }
 
   return scanCard(expoTextExtractor, imageUri);

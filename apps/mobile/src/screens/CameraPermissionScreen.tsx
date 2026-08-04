@@ -4,9 +4,10 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  Alert,
+  Platform,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
+import { showAlert } from "../utils/dialogs";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/types";
 import { requestCameraPermission, requestPhotoLibraryPermission } from "../utils/permissions";
@@ -32,7 +33,7 @@ export default function CameraPermissionScreen({ navigation }: Props) {
   const handleImportFromPhotos = useCallback(async () => {
     const granted = await requestPhotoLibraryPermission();
     if (!granted) {
-      Alert.alert("Permission Required", "Photo library access is needed to import images.");
+      showAlert("Permission Required", "Photo library access is needed to import images.");
       return;
     }
 
@@ -47,9 +48,34 @@ export default function CameraPermissionScreen({ navigation }: Props) {
         navigation.replace("CardScannerReview", { imageUri: result.assets[0].uri });
       }
     } catch {
-      Alert.alert("Error", "Could not open photo library. Please try again.");
+      showAlert("Error", "Could not open photo library. Please try again.");
     }
   }, [navigation]);
+
+  // Web: no camera-scan flow (ML Kit OCR is on-device native) — go straight
+  // to a file upload; the review screen falls back to manual entry there.
+  if (Platform.OS === "web") {
+    return (
+      <View style={styles.root}>
+        <View style={styles.content}>
+          <Text style={styles.icon}>📇</Text>
+          <Text style={styles.title}>Add a Business Card</Text>
+          <Text style={styles.body}>
+            Upload a photo of a business card, then review and complete the
+            contact details before saving.
+          </Text>
+        </View>
+        <View style={styles.actions}>
+          <TouchableOpacity style={styles.primaryButton} onPress={handleImportFromPhotos}>
+            <Text style={styles.primaryButtonText}>Upload Card Photo</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.secondaryButton} onPress={handleNotNow}>
+            <Text style={styles.secondaryButtonText}>Not Now</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.root}>

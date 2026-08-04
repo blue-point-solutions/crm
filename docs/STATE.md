@@ -95,6 +95,34 @@ APK distribution + in-app self-update (2026-07-28).
 - 2026-07-29 · cards API · POST /cards/upload-url live-verified: presign →
   PUT 200 to R2 → public URL 200.
 
+## 2026-08-05 session — web app live at app.bpconnect.app
+- The mobile app now ships as a web app: Expo static web export (SPA,
+  `web.output: "single"` — avoids the static-export hydration double-mount
+  found during the #57 e2e) of the SAME apps/mobile codebase, served by a new
+  `web` nginx container (loopback :8083, SPA fallback, hashed bundles
+  immutable, index.html no-store) behind tunnel ingress + proxied CNAME
+  **app.bpconnect.app** (both added via CF API). Publish via
+  `scripts/release-web.sh` (bakes EXPO_PUBLIC_API_URL, rsyncs web-dist/).
+- Web-gap fixes in apps/mobile: sessions persist in localStorage on web
+  (documented tradeoff — rotating single-use refresh tokens + replay
+  detection; was memory-only, logout on every refresh); new
+  utils/dialogs.ts (RN-Web Alert.alert is a silent no-op — all 7 Alert call
+  sites migrated, confirms now work in browsers); DateField renders a native
+  `<input type=date>` on web (RNC datetimepicker has no web impl); card-scan
+  entry on web is upload-first (no camera flow; OCR mock now __DEV__-only so
+  fabricated data can never prefill a prod form — falls back to manual
+  entry); e2e spec updated to the new web scan flow.
+- CORS tightened: `CRM_CORS_ORIGINS=https://app.bpconnect.app` in prod
+  compose (STATE "Next" item closed); localhost defaults still apply for
+  local dev/e2e when unset.
+- Evidence: 2026-08-05 · web app · mobile tsc clean + jest 52/52 (6 new);
+  Playwright happy path green vs live api.bpconnect.app (dev server); prod
+  static-export smoke green served locally AND live at
+  https://app.bpconnect.app (login → dashboard → reload keeps session);
+  preflight from app.bpconnect.app → 200 + allow-origin echo, evil origin →
+  400; SPA deep route → 200; bundle → max-age=31536000 immutable; e2e Jane
+  Smith contact deleted from shared tenant (DELETE 204, q=Jane total 0).
+
 ## Next
 - QA device pass of v5 (1.2.1) on a fleet A15 (HUMAN-QUEUE §5) — 9 Device
   cases + 7 emulator-Blocked cases in docs/test-matrix.xlsx; REM-02/03 and
@@ -106,7 +134,6 @@ APK distribution + in-app self-update (2026-07-28).
   at platform-kiosk-offline vs crm PR #35's AsyncStorage stand-in shape.
 - Phase 2 when unblocked: deals API (#37, needs erp access), push reminders,
   tags/status/source management UI, sales_pipeline() wiring (#255 merged).
-- Set `CRM_CORS_ORIGINS` tightly if a browser-based client ships.
 
 ## Blockers
 - None mechanical. Human gates in HUMAN-QUEUE.md: token expiry 2026-08-25,

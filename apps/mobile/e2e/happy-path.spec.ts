@@ -8,9 +8,8 @@
  *
  *  1. Register a brand-new account -> real POST /auth/register (platform-core
  *     AuthService/UserService under the hood, not a mock) -> lands on Dashboard.
- *  2. Dashboard -> "Scan a Business Card" -> camera permission denied (no
- *     camera device in this browser context) -> "Import from Photos" fallback
- *     -> upload a fixture image.
+ *  2. Dashboard -> "Scan a Business Card" -> web upload-first screen
+ *     ("Upload Card Photo") -> upload a fixture image.
  *  3. Card Scanner Review screen: mock OCR data loads (RN-Web has no ML Kit,
  *     so src/utils/ocr.ts intentionally falls back to a fixed mock result on
  *     web -- on-device OCR is real on Android/iOS), fill required Marketing
@@ -62,17 +61,15 @@ test("register -> scan -> review -> save happy path", async ({ page }) => {
   // Dashboard is the post-register landing screen.
   await expect(page.getByText("Scan a Business Card").last()).toBeVisible({ timeout: 15_000 });
 
-  // --- 2. Scan a business card (camera denied -> photo-library fallback) --
+  // --- 2. Add a business card (web flow: upload-first, no camera) ---------
+  // On web CameraPermissionScreen skips the camera-permission dance entirely
+  // and offers a straight file upload (desktop browsers + card scanning via
+  // webcam is a dead end; ML Kit OCR is native-only anyway).
   await page.getByText("Scan a Business Card").last().click();
-  await expect(page.getByText("Scan Business Cards").last()).toBeVisible({ timeout: 10_000 });
-  await page.getByText("Allow Access").last().click();
-
-  // No camera device available in this browser context -> permission denied
-  // -> fallback banner with "Import from Photos" appears.
-  await expect(page.getByText("Import from Photos").last()).toBeVisible({ timeout: 10_000 });
+  await expect(page.getByText("Add a Business Card").last()).toBeVisible({ timeout: 10_000 });
 
   const fileChooserPromise = page.waitForEvent("filechooser");
-  await page.getByText("Import from Photos").last().click();
+  await page.getByText("Upload Card Photo").last().click();
   const fileChooser = await fileChooserPromise;
   await fileChooser.setFiles(path.join(__dirname, "fixtures", "sample-card.jpg"));
 

@@ -24,6 +24,10 @@ services:
     env_file: .env
     environment:
       CRM_ENVIRONMENT: production
+      # Tight CORS for the browser client (STATE "if a browser-based client
+      # ships" — it has: app.bpconnect.app). The localhost defaults in
+      # settings.py only apply when this is unset (local dev/e2e).
+      CRM_CORS_ORIGINS: https://app.bpconnect.app
       # postgresql:// — SQLAlchemy (platform-core migrations) rejects postgres://
       # `grocery-db` is the shared postgres' alias on the shared-db network.
       CRM_DATABASE_URL: postgresql://${CRM_POSTGRES_USER:-crm}:${CRM_POSTGRES_PASSWORD:?set in .env}@grocery-db:5432/${CRM_POSTGRES_DB:-crm}
@@ -46,6 +50,17 @@ services:
       - ./apk-dist:/usr/share/nginx/html:ro
     ports:
       - "127.0.0.1:8081:80"   # host cloudflared ingress target; loopback only
+    restart: unless-stopped
+
+  web:
+    # Static server for the web app (Expo web export, SPA), published by
+    # scripts/release-web.sh into web-dist/.
+    image: nginx:alpine
+    volumes:
+      - ./infra/web-nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./web-dist:/usr/share/nginx/html:ro
+    ports:
+      - "127.0.0.1:8083:80"   # host cloudflared ingress target; loopback only
     restart: unless-stopped
 
 networks:

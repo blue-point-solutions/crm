@@ -59,6 +59,39 @@ export default function DateField({
 
   const display = pretty(value);
 
+  // @react-native-community/datetimepicker has no web implementation — the
+  // browser's own date input is the picker there.
+  if (Platform.OS === "web") {
+    return (
+      <View style={styles.wrapper}>
+        <Text style={styles.label}>{label}</Text>
+        <View style={styles.row}>
+          <View style={[styles.field, { paddingVertical: 0 }]}>
+            <Ionicons name="calendar-outline" size={18} color={colors.textSecondary} />
+            <input
+              type="date"
+              aria-label={label}
+              value={value?.slice(0, 10) ?? ""}
+              min={minimumDate ? toIso(minimumDate) : undefined}
+              onChange={(e) => onChange(e.target.value || undefined)}
+              style={{
+                flex: 1,
+                border: "none",
+                outline: "none",
+                background: "transparent",
+                fontSize: 15,
+                color: colors.text,
+                paddingTop: 12,
+                paddingBottom: 12,
+                fontFamily: "inherit",
+              }}
+            />
+          </View>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.wrapper}>
       <Text style={styles.label}>{label}</Text>

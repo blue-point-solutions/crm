@@ -9,7 +9,6 @@ import {
   Linking,
   Modal,
   Image,
-  Alert,
 } from "react-native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import {
@@ -24,6 +23,7 @@ import {
   cancelFollowUpReminder,
   scheduleFollowUpReminder,
 } from "../utils/reminders";
+import { confirmDialog, showAlert } from "../utils/dialogs";
 import { RootStackParamList } from "../navigation/types";
 import {
   Activity,
@@ -133,7 +133,7 @@ function consentColor(consent: ContactDetail["marketingConsent"]): string {
 }
 
 function openUrl(url: string) {
-  Linking.openURL(url).catch(() => Alert.alert("Cannot open link", url));
+  Linking.openURL(url).catch(() => showAlert("Cannot open link", url));
 }
 
 // ─── Sub-components ────────────────────────────────────────────────────────
@@ -254,7 +254,7 @@ export default function ContactDetailScreen() {
   function quickAction(url: string, log: NonNullable<typeof pendingLog>) {
     Linking.openURL(url)
       .then(() => setPendingLog(log))
-      .catch(() => Alert.alert("Cannot open link", url));
+      .catch(() => showAlert("Cannot open link", url));
   }
 
   async function handleLogQuickAction() {
@@ -389,14 +389,15 @@ export default function ContactDetailScreen() {
       draftPainPoint !== (contact.painPoint ?? "") ||
       draftFollowUp.trim() !== (contact.followUpDate ?? "");
     if (hasChanges) {
-      Alert.alert("Discard Changes?", "Your edits will not be saved.", [
-        { text: "Keep Editing", style: "cancel" },
-        {
-          text: "Discard",
-          style: "destructive",
-          onPress: () => setEditMode(false),
-        },
-      ]);
+      confirmDialog({
+        title: "Discard Changes?",
+        message: "Your edits will not be saved.",
+        confirmLabel: "Discard",
+        cancelLabel: "Keep Editing",
+        destructive: true,
+      }).then((ok) => {
+        if (ok) setEditMode(false);
+      });
     } else {
       setEditMode(false);
     }
