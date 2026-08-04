@@ -139,6 +139,14 @@ APK distribution + in-app self-update (2026-07-28).
   `PW_HEADLESS=1 npx playwright test` → happy path 1/1 green in 13.2s
   (register → card upload → review → save, fully local stack, main @48fb82a).
   Local api/postgres stopped after; e2e rows live only in the local volume.
+- 2026-08-05 · card-image (R2) link in web UI · found + fixed: browser PUT to
+  the presigned R2 URL was CORS-blocked (native apps never hit CORS), so
+  web saves silently stored no image. Set a CORS policy on bucket
+  `crm-images` via CF API (PUT allowed from https://app.bpconnect.app +
+  http://localhost:8082, header content-type, max-age 3600 — account-level
+  infra config, not in repo). Headless UI e2e vs live app: presign 200 → R2
+  PUT 200 → contact stores pub-…r2.dev URL → ContactDetail <img> renders
+  (naturalWidth > 0) → QA contact deleted (204).
 
 ## Next
 - QA device pass of v5 (1.2.1) on a fleet A15 (HUMAN-QUEUE §5) — 9 Device
