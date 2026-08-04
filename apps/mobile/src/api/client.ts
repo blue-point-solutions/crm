@@ -49,24 +49,46 @@ client.interceptors.request.use((config: InternalAxiosRequestConfig) => {
 // refresh promise.
 let _refreshInFlight: Promise<boolean> | null = null;
 
+function doRefresh(): Promise<boolean> {
+  const token = _refreshToken;
+  return axios
+    .post<TokenPair>(`${BASE_URL}/auth/refresh`, { refresh_token: token })
+    .then(({ data }) => {
+      setTokens(data);
+      return true;
+    })
+    .catch(() => {
+      // Only wipe if nothing newer replaced the failed token in the
+      // meantime (a successful concurrent refresh would have).
+      if (_refreshToken === token) clearTokens();
+      return false;
+    });
+}
+
+// Web only: localStorage shares the single-use refresh token across tabs,
+// and _refreshInFlight only dedupes within one tab — two tabs refreshing
+// concurrently would trip platform-core's replay detection and revoke the
+// whole session family. The Web Locks API serializes tabs; inside the lock,
+// adopt a pair another tab already rotated instead of replaying ours.
+function refreshCrossTab(): Promise<boolean> {
+  const locks = typeof navigator !== "undefined" ? navigator.locks : undefined;
+  if (!locks) return doRefresh();
+  return locks.request("crm_session_refresh", async () => {
+    const stored = await loadSession();
+    if (stored && stored.refresh_token !== _refreshToken) {
+      _accessToken = stored.access_token;
+      _refreshToken = stored.refresh_token;
+      return true;
+    }
+    return doRefresh();
+  });
+}
+
 function refreshOnce(): Promise<boolean> {
   if (!_refreshInFlight) {
-    const token = _refreshToken;
-    _refreshInFlight = axios
-      .post<TokenPair>(`${BASE_URL}/auth/refresh`, { refresh_token: token })
-      .then(({ data }) => {
-        setTokens(data);
-        return true;
-      })
-      .catch(() => {
-        // Only wipe if nothing newer replaced the failed token in the
-        // meantime (a successful concurrent refresh would have).
-        if (_refreshToken === token) clearTokens();
-        return false;
-      })
-      .finally(() => {
-        _refreshInFlight = null;
-      });
+    _refreshInFlight = refreshCrossTab().finally(() => {
+      _refreshInFlight = null;
+    });
   }
   return _refreshInFlight;
 }
