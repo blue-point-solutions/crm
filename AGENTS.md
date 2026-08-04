@@ -128,6 +128,12 @@ if all its dependencies are now Done, set it `status:ready` + Project Ready.
    off. Required CI status checks are added once CI exists (architecture-lock
    ticket). You still self-merge only on **green** CI; if your change reddens
    `main`, you own the immediate fix.
+8. **Never commit to local `main` — not even docs.** Branch protection means such
+   commits can't be pushed, so they sit local-only until a later feature branch
+   silently absorbs them into an unrelated squash (this happened to the
+   HUMAN-QUEUE encryption commits via PR #67). Every change, docs included, goes
+   on its own `docs/*` or `crm/$N-*` branch and merges via PR; local `main` stays
+   a read-only mirror of `origin/main`.
 
 ---
 
