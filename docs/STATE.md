@@ -122,6 +122,16 @@ APK distribution + in-app self-update (2026-07-28).
   preflight from app.bpconnect.app → 200 + allow-origin echo, evil origin →
   400; SPA deep route → 200; bundle → max-age=31536000 immutable; e2e Jane
   Smith contact deleted from shared tenant (DELETE 204, q=Jane total 0).
+- PR #67 squash-merged after agent code review (5 reviewers, 7 candidates,
+  none ≥ threshold; the three 75-scored findings fixed pre-merge anyway):
+  Web Locks API serializes /auth/refresh across tabs (localStorage shares
+  the single-use refresh token — per-tab single-flight alone could trip
+  replay detection and revoke the session family), deleteCardImage revokes
+  web blob: URLs (security #52 parity), hashed /assets/ now cached
+  immutable. jest 54/54; redeployed + live smoke re-green, hashed asset
+  serves immutable. NOTE: #67's squash also carried two previously
+  local-only docs commits (782384b, 025895c HUMAN-QUEUE encryption items) —
+  local main was reset to origin/main after verifying content-identical.
 
 ## Next
 - QA device pass of v5 (1.2.1) on a fleet A15 (HUMAN-QUEUE §5) — 9 Device
