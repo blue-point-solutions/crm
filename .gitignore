@@ -37,3 +37,4 @@ test-results/
 apk-dist/
 .e2e-emu/
 .serena/
+web-dist/

@@ -7,11 +7,11 @@ import {
   ScrollView,
   StyleSheet,
   ActivityIndicator,
-  Alert,
 } from "react-native";
 import { createContact } from "../api/contacts";
 import { uploadCardImage } from "../api/cards";
 import { deleteCardImage } from "../utils/cardImage";
+import { showAlert } from "../utils/dialogs";
 import { DateField } from "../components";
 import { scheduleFollowUpReminder } from "../utils/reminders";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -170,10 +170,9 @@ export default function CardScannerContactDetailsScreen({ navigation, route }: P
         duplicatesCount: created.duplicates.length,
       });
     } catch (e: any) {
-      Alert.alert(
+      showAlert(
         "Couldn't Save Contact",
-        e.response?.data?.detail ?? "Check your connection and try again.",
-        [{ text: "OK" }]
+        e.response?.data?.detail ?? "Check your connection and try again."
       );
     } finally {
       setSaving(false);

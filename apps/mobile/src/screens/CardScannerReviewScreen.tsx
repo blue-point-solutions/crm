@@ -10,12 +10,12 @@ import {
   Modal,
   Switch,
   ActivityIndicator,
-  Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/types";
 import { parseCardImageSafe } from "../utils/ocr";
+import { confirmDialog } from "../utils/dialogs";
 import { deleteCardImage } from "../utils/cardImage";
 import { OcrResult, ContactDraft } from "../types/contact";
 
@@ -164,23 +164,19 @@ export default function CardScannerReviewScreen({ navigation, route }: Props) {
   }, [draft, navigation]);
 
   const handleDiscard = useCallback(() => {
-    Alert.alert(
-      "Discard Card?",
-      "All extracted information will be lost.",
-      [
-        { text: "Keep Editing", style: "cancel" },
-        {
-          text: "Discard",
-          style: "destructive",
-          onPress: () => {
-            // Security #52: the cropped card photo is a cache temp file —
-            // remove it as soon as the user discards the scan.
-            deleteCardImage(imageUri);
-            navigation.goBack();
-          },
-        },
-      ]
-    );
+    confirmDialog({
+      title: "Discard Card?",
+      message: "All extracted information will be lost.",
+      confirmLabel: "Discard",
+      cancelLabel: "Keep Editing",
+      destructive: true,
+    }).then((ok) => {
+      if (!ok) return;
+      // Security #52: the cropped card photo is a cache temp file —
+      // remove it as soon as the user discards the scan.
+      deleteCardImage(imageUri);
+      navigation.goBack();
+    });
   }, [navigation, imageUri]);
 
   if (isLoading) {
