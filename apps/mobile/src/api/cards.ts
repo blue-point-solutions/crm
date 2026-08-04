@@ -49,7 +49,7 @@ export async function uploadCardImage(localUri: string): Promise<string | null> 
  */
 async function readLocalImage(localUri: string): Promise<Blob> {
   if (localUri.startsWith("file://")) {
-    return new File(localUri) as unknown as Blob;
+    return new File(localUri);
   }
   return (await fetch(localUri)).blob();
 }
