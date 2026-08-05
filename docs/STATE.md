@@ -153,6 +153,20 @@ APK distribution + in-app self-update (2026-07-28).
   GET /contacts/{id} — the LIST endpoint omits cardImageUri, beware false
   negatives). Fix #72: native reads via expo-file-system File (Blob per v56
   docs), web keeps fetch(blob:); failure paths now warn. jest 57/57.
+- 2026-08-05 · web camera capture shipped (#74) · web add-card screen now
+  offers Use Camera (expo-camera getUserMedia) with a front/back flip
+  toggle (web-only; native keeps torch + back camera, QA surface
+  unchanged); web captures skip the guide-box crop (screen-fraction
+  mapping assumes 1:1 fullscreen preview — untrue for webcams). Verified
+  headless with Chromium fake camera BOTH fully local (postgres+uvicorn+
+  static export) and live on app.bpconnect.app: viewfinder → flip
+  front↔back keeps stream → capture → manual-entry review → save stores
+  working R2 cardImageUri; QA contacts deleted (204).
+- 2026-08-05 · release-web.sh hardened · Metro's transform cache reuses
+  bundles baked with a DIFFERENT EXPO_PUBLIC_API_URL — a localhost:8001
+  bundle briefly shipped to app.bpconnect.app (caught within minutes by
+  post-publish bundle grep). Script now exports with --clear AND fails the
+  release if the built bundle lacks the target API URL.
 - 2026-08-05 · v1.2.2 (versionCode 6) published · update.json serves
   versionCode 6 / 1.2.2, sha256 fa870b18… matches local; PUBLISHED APK
   re-verified on emulator: scan→save → cardImageUri stored, r2.dev URL

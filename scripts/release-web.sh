@@ -22,7 +22,14 @@ die() { echo "✗ $*" >&2; exit 1; }
 [ -f .env ] || die ".env missing"
 
 echo "==> [1/3] expo export --platform web (API: $API_URL)"
-(cd apps/mobile && EXPO_PUBLIC_API_URL="$API_URL" npx expo export --platform web)
+# --clear is load-bearing: Metro's transform cache inlines EXPO_PUBLIC_* at
+# bundle time and will happily reuse a bundle baked with a DIFFERENT api url
+# from an earlier local build (bit us on 2026-08-05 — localhost:8001 shipped
+# to prod).
+(cd apps/mobile && EXPO_PUBLIC_API_URL="$API_URL" npx expo export --platform web --clear)
+
+grep -rlq "$API_URL" apps/mobile/dist/_expo/static/js/web/ \
+  || die "built bundle does not contain $API_URL — stale Metro cache?"
 
 echo "==> [2/3] stage web-dist/"
 rm -rf "$DIST"
