@@ -6,6 +6,7 @@ import {
   StyleSheet,
   useWindowDimensions,
   ActivityIndicator,
+  Platform,
 } from "react-native";
 import { CameraView, CameraType, FlashMode } from "expo-camera";
 import * as ImagePicker from "expo-image-picker";
@@ -52,12 +53,19 @@ export default function CardScannerScreen({ onCapture, onCancel, navigation }: P
   // playback throughout. SoundPool is Android's purpose-built low-latency
   // API for short UI sounds and doesn't have that problem.
   useEffect(() => {
-    preloadShutterSound();
+    // Native-only module (Android SoundPool) — web browsers have no
+    // equivalent and the call would throw.
+    if (Platform.OS !== "web") preloadShutterSound();
   }, []);
 
   // Camera state
   const [isCameraReady, setIsCameraReady] = useState(false);
   const [torchEnabled, setTorchEnabled] = useState(false);
+  // Web only: desktop/laptop users pick between user-facing and environment
+  // cameras (getUserMedia facingMode under the hood). Native stays hard-wired
+  // to the back camera — card scanning with the selfie camera isn't a flow
+  // the fleet devices need, and it keeps the QA surface unchanged.
+  const [facing, setFacing] = useState<CameraType>("back");
 
   // Capture state
   const [isProcessing, setIsProcessing] = useState(false);
@@ -122,8 +130,10 @@ export default function CardScannerScreen({ onCapture, onCancel, navigation }: P
       const photo = await cameraRef.current.takePictureAsync({ quality: 0.92, shutterSound: false });
       if (!photo) return;
 
-      playShutterSound();
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (Platform.OS !== "web") {
+        playShutterSound();
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }
 
       // Brief "Processing…" freeze (500 ms) before calling back
       await new Promise<void>((resolve) => setTimeout(resolve, 500));
@@ -132,7 +142,14 @@ export default function CardScannerScreen({ onCapture, onCancel, navigation }: P
       // 3.5:2 card aspect ratio) onto the actual captured photo's pixel
       // dimensions -- the preview fills the screen 1:1 with what's captured,
       // so the crop region is the same fraction of the photo as the box is
-      // of the screen.
+      // of the screen. On web that 1:1 assumption doesn't hold (the webcam's
+      // aspect rarely matches the browser window, and the <video> letterboxes
+      // or covers), so cropping by screen fractions would slice the wrong
+      // region — hand over the full frame instead.
+      if (Platform.OS === "web") {
+        await handleCapture(photo.uri);
+        return;
+      }
       const cropWidthFrac = boxWidth / screenWidth;
       const cropHeightFrac = boxHeight / screenHeight;
       const cropRegion = {
@@ -193,7 +210,7 @@ export default function CardScannerScreen({ onCapture, onCancel, navigation }: P
       <CameraView
         ref={cameraRef}
         style={StyleSheet.absoluteFill}
-        facing={"back" as CameraType}
+        facing={facing}
         enableTorch={torchEnabled}
         onCameraReady={() => setIsCameraReady(true)}
       />
@@ -242,14 +259,25 @@ export default function CardScannerScreen({ onCapture, onCancel, navigation }: P
         <Text style={styles.iconText}>✕</Text>
       </TouchableOpacity>
 
-      {/* Top-right: Flash toggle */}
-      <TouchableOpacity
-        style={[styles.topButton, styles.topRight]}
-        onPress={() => setTorchEnabled((v) => !v)}
-        accessibilityLabel={torchEnabled ? "Flash on" : "Flash off"}
-      >
-        <Text style={[styles.iconText, torchEnabled && styles.iconActive]}>⚡</Text>
-      </TouchableOpacity>
+      {/* Top-right: flash toggle (native) / camera flip (web — browsers have
+          no torch API, and multi-camera laptops/phones need facing control) */}
+      {Platform.OS === "web" ? (
+        <TouchableOpacity
+          style={[styles.topButton, styles.topRight]}
+          onPress={() => setFacing((f) => (f === "back" ? "front" : "back"))}
+          accessibilityLabel={facing === "back" ? "Switch to front camera" : "Switch to back camera"}
+        >
+          <Text style={styles.iconText}>🔄</Text>
+        </TouchableOpacity>
+      ) : (
+        <TouchableOpacity
+          style={[styles.topButton, styles.topRight]}
+          onPress={() => setTorchEnabled((v) => !v)}
+          accessibilityLabel={torchEnabled ? "Flash on" : "Flash off"}
+        >
+          <Text style={[styles.iconText, torchEnabled && styles.iconActive]}>⚡</Text>
+        </TouchableOpacity>
+      )}
 
       {/* Bottom controls */}
       <View style={styles.bottomBar}>

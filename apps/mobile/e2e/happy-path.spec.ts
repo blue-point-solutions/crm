@@ -8,8 +8,9 @@
  *
  *  1. Register a brand-new account -> real POST /auth/register (platform-core
  *     AuthService/UserService under the hood, not a mock) -> lands on Dashboard.
- *  2. Dashboard -> "Scan a Business Card" -> web upload-first screen
- *     ("Upload Card Photo") -> upload a fixture image.
+ *  2. Dashboard -> "Scan a Business Card" -> web add-card screen (Use Camera
+ *     or Upload Card Photo) -> this test takes the upload path with a
+ *     fixture image (the camera path is covered by the fake-camera smoke).
  *  3. Card Scanner Review screen: mock OCR data loads (RN-Web has no ML Kit,
  *     so src/utils/ocr.ts intentionally falls back to a fixed mock result on
  *     web -- on-device OCR is real on Android/iOS), fill required Marketing
@@ -61,10 +62,10 @@ test("register -> scan -> review -> save happy path", async ({ page }) => {
   // Dashboard is the post-register landing screen.
   await expect(page.getByText("Scan a Business Card").last()).toBeVisible({ timeout: 15_000 });
 
-  // --- 2. Add a business card (web flow: upload-first, no camera) ---------
-  // On web CameraPermissionScreen skips the camera-permission dance entirely
-  // and offers a straight file upload (desktop browsers + card scanning via
-  // webcam is a dead end; ML Kit OCR is native-only anyway).
+  // --- 2. Add a business card (web: upload path; camera also available) ---
+  // The web add-card screen offers Use Camera (getUserMedia) and Upload Card
+  // Photo; this test exercises the upload path — no camera device exists in
+  // this browser context, and ML Kit OCR is native-only either way.
   await page.getByText("Scan a Business Card").last().click();
   await expect(page.getByText("Add a Business Card").last()).toBeVisible({ timeout: 10_000 });
 

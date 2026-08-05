@@ -52,8 +52,9 @@ export default function CameraPermissionScreen({ navigation }: Props) {
     }
   }, [navigation]);
 
-  // Web: no camera-scan flow (ML Kit OCR is on-device native) — go straight
-  // to a file upload; the review screen falls back to manual entry there.
+  // Web: camera capture works via getUserMedia (expo-camera web), with file
+  // upload as the alternative — OCR is still native-only either way, so the
+  // review screen drops to manual entry with the photo attached.
   if (Platform.OS === "web") {
     return (
       <View style={styles.root}>
@@ -61,13 +62,31 @@ export default function CameraPermissionScreen({ navigation }: Props) {
           <Text style={styles.icon}>📇</Text>
           <Text style={styles.title}>Add a Business Card</Text>
           <Text style={styles.body}>
-            Upload a photo of a business card, then review and complete the
-            contact details before saving.
+            Capture a card with your camera or upload a photo, then review and
+            complete the contact details before saving.
           </Text>
+          {denied && (
+            <View style={styles.fallbackBanner}>
+              <Text style={styles.fallbackText}>
+                Camera access was denied by the browser. You can still upload a
+                card photo instead.
+              </Text>
+            </View>
+          )}
         </View>
         <View style={styles.actions}>
-          <TouchableOpacity style={styles.primaryButton} onPress={handleImportFromPhotos}>
-            <Text style={styles.primaryButtonText}>Upload Card Photo</Text>
+          {!denied && (
+            <TouchableOpacity style={styles.primaryButton} onPress={handleAllowAccess}>
+              <Text style={styles.primaryButtonText}>Use Camera</Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            style={denied ? styles.primaryButton : styles.secondaryButton}
+            onPress={handleImportFromPhotos}
+          >
+            <Text style={denied ? styles.primaryButtonText : styles.secondaryButtonText}>
+              Upload Card Photo
+            </Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.secondaryButton} onPress={handleNotNow}>
             <Text style={styles.secondaryButtonText}>Not Now</Text>
