@@ -22,6 +22,12 @@ class Settings(BaseSettings):
     # the lifespan runs platform-core migrations and pre-warms the pool.
     database_url: str | None = None
 
+    # Email of the account that owns the pre-isolation shared workspace (the
+    # rows written while every user resolved to DEFAULT_TENANT_ID). Set once in
+    # production (CRM_LEGACY_WORKSPACE_OWNER) for the adoption bootstrap; the
+    # insert is ON CONFLICT DO NOTHING so leaving it set is harmless.
+    legacy_workspace_owner: str | None = None
+
     # Expo web dev server + Expo web export preview origins so the mobile app's
     # RN-Web build can call the API cross-origin. Required for authenticated
     # requests: the Authorization header makes every call non-simple, so the

@@ -6,11 +6,11 @@ platform-core's own {username, password}. All actual identity/password/JWT
 logic is delegated to platform_core.auth.service.AuthService and
 platform_core.users.service.UserService — nothing is reimplemented here.
 
-Tenancy note: platform-tenancy ships only an in-memory TenantStore (no
-Postgres-backed persistence, no user-tenant-role membership model). Building
-real multi-tenant persistence is out of scope for this pass — the MVP happy
-path is single-workspace per account, so /me returns one synthesized default
-tenant. Revisit when/if multi-tenant workspaces become real product scope.
+Tenancy: each account owns a real workspace row with an explicit membership
+edge — see crm_api.tenancy. This previously returned one synthesized tenant
+shared by every account, which meant every user read and wrote the same
+contacts; DEFAULT_TENANT_ID survives only as the id of the founding workspace
+so pre-existing rows need no migration.
 """
 
 from __future__ import annotations
@@ -29,10 +29,18 @@ from platform_core.users.service import UserService
 from pydantic import BaseModel, EmailStr
 from pydantic import ValidationError as PydanticValidationError
 
+from crm_api.tenancy import (
+    LEGACY_WORKSPACE_ID,
+    create_workspace_for_user,
+    resolve_workspace_id,
+)
+
 router = APIRouter(tags=["crm-auth"])
 
-# Single synthesized workspace until real multi-tenant persistence exists.
-DEFAULT_TENANT_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
+# Id of the founding workspace: every row written before per-account isolation
+# carries this tenant_id, so it is adopted as a real workspace rather than
+# migrated away. New accounts get their own uuid4 workspace.
+DEFAULT_TENANT_ID = LEGACY_WORKSPACE_ID
 DEFAULT_TENANT_NAME = "My Workspace"
 
 
@@ -124,6 +132,7 @@ async def register(
             ) from exc
 
     await _set_display_name(pool, user.id, body.name)
+    await create_workspace_for_user(pool, user.id, body.name)
     tokens = await svc.issue_tokens(user.id)
     return TokenPairOut(
         access_token=tokens.access_token,
@@ -155,14 +164,18 @@ async def me(
 ) -> dict[str, object]:
     name = await _get_display_name(pool, user.id, user.username)
     role = "Admin" if user.is_admin else "Member"
+    workspace_id = await resolve_workspace_id(pool, user.id)
+    async with pool.acquire() as conn:
+        ws = await conn.fetchrow("SELECT name FROM crm_workspaces WHERE id = $1", workspace_id)
+    workspace_name = ws["name"] if ws else DEFAULT_TENANT_NAME
     return {
         "user": {
             "id": str(user.id),
             "email": user.email,
             "name": name,
-            "tenant_id": str(DEFAULT_TENANT_ID),
+            "tenant_id": str(workspace_id),
             "role": role,
         },
-        "tenant": {"id": str(DEFAULT_TENANT_ID), "name": DEFAULT_TENANT_NAME},
+        "tenant": {"id": str(workspace_id), "name": workspace_name},
         "role": role,
     }

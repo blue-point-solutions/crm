@@ -43,7 +43,7 @@ from platform_tracking import (
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
 
-from crm_api.auth import DEFAULT_TENANT_ID
+from crm_api.tenancy import get_current_workspace_id
 from crm_api.contacts import ContactRepo, get_contact_repo
 
 router = APIRouter(tags=["deals"])
@@ -210,10 +210,10 @@ async def _log_stage_activity(
 async def create_deal(
     body: DealIn,
     user: User = Depends(get_current_user),  # noqa: B008
+    tenant_id: uuid.UUID = Depends(get_current_workspace_id),  # noqa: B008
     store: Any = Depends(get_tracking_store),  # noqa: B008
     contacts: ContactRepo = Depends(get_contact_repo),  # noqa: B008
 ) -> DealOut:
-    tenant_id = DEFAULT_TENANT_ID
     contact = await contacts.get(tenant_id, body.contact_id)
     if contact is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="contact not found")
@@ -245,10 +245,10 @@ async def list_deals(
     status_: str | None = Query(default=None, alias="status", pattern="^(open|completed)$"),
     contact_id: uuid.UUID | None = Query(default=None, alias="contactId"),  # noqa: B008
     user: User = Depends(get_current_user),  # noqa: B008
+    tenant_id: uuid.UUID = Depends(get_current_workspace_id),  # noqa: B008
     store: Any = Depends(get_tracking_store),  # noqa: B008
     contacts: ContactRepo = Depends(get_contact_repo),  # noqa: B008
 ) -> DealListOut:
-    tenant_id = DEFAULT_TENANT_ID
     if contact_id is not None:
         jobs = await store.list_jobs_for_customer(
             str(tenant_id), str(contact_id), status=status_
@@ -276,10 +276,10 @@ async def advance_deal(
     deal_id: uuid.UUID,
     body: DealAdvanceIn,
     user: User = Depends(get_current_user),  # noqa: B008
+    tenant_id: uuid.UUID = Depends(get_current_workspace_id),  # noqa: B008
     store: Any = Depends(get_tracking_store),  # noqa: B008
     contacts: ContactRepo = Depends(get_contact_repo),  # noqa: B008
 ) -> DealOut:
-    tenant_id = DEFAULT_TENANT_ID
     try:
         job = await store.get_job(str(tenant_id), str(deal_id))
     except JobNotFoundError as exc:
@@ -337,9 +337,10 @@ async def advance_deal(
 @router.get("/pipeline", response_model=PipelineOut)
 async def pipeline_board(
     _user: User = Depends(get_current_user),  # noqa: B008
+    workspace_id: uuid.UUID = Depends(get_current_workspace_id),  # noqa: B008
     store: Any = Depends(get_tracking_store),  # noqa: B008
 ) -> PipelineOut:
-    tenant_id = str(DEFAULT_TENANT_ID)
+    tenant_id = str(workspace_id)
     open_jobs = await store.list_open_jobs(tenant_id)
     by_stage: dict[str, list[Job]] = {k: [] for k in _OPEN_STAGES}
     for j in open_jobs:

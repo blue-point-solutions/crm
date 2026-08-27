@@ -9,6 +9,10 @@ from typing import Any
 
 from fastapi.testclient import TestClient
 from platform_core.auth.deps import get_current_user
+
+from crm_api.tenancy import get_current_workspace_id
+
+TEST_WORKSPACE_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
 from platform_tracking import Job, JobNotFoundError
 from test_contacts import FakeRepo, FakeUser
 
@@ -67,6 +71,7 @@ def _client() -> tuple[TestClient, FakeRepo, FakeTrackingStore]:
     tracking = FakeTrackingStore()
     app = create_app(Settings(database_url=None))
     app.dependency_overrides[get_current_user] = lambda: FakeUser()
+    app.dependency_overrides[get_current_workspace_id] = lambda: TEST_WORKSPACE_ID
     app.dependency_overrides[get_contact_repo] = lambda: contacts
     app.dependency_overrides[get_dashboard_repo] = lambda: contacts
     app.dependency_overrides[get_tracking_store] = lambda: tracking
