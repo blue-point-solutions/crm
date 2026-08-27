@@ -40,7 +40,7 @@ from platform_import_export import (
 from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
 
-from crm_api.auth import DEFAULT_TENANT_ID
+from crm_api.tenancy import get_current_workspace_id
 from crm_api.contacts import _CONSENT_TO_WIRE, ContactRepo, get_contact_repo
 
 router = APIRouter(tags=["import-export"])
@@ -154,11 +154,6 @@ class ImportOut(_Camel):
 # --------------------------------------------------------------------------
 
 
-def _tenant(_user: User) -> uuid.UUID:
-    # Single synthesized workspace for now (see auth.py tenancy note).
-    return DEFAULT_TENANT_ID
-
-
 async def _read_upload(file: UploadFile) -> tuple[list[str], list[list[str]]]:
     data = await file.read()
     try:
@@ -263,6 +258,7 @@ async def import_contacts(
     file: UploadFile,
     mapping: str = Form(),
     user: User = Depends(get_current_user),  # noqa: B008
+    tenant_id: uuid.UUID = Depends(get_current_workspace_id),  # noqa: B008
     repo: ContactRepo = Depends(get_contact_repo),  # noqa: B008
 ) -> ImportOut:
     header, data_rows = await _read_upload(file)
@@ -289,6 +285,8 @@ async def import_contacts(
             failed_rows.add(row_number)
             errors.append(ImportRowErrorOut(row_number=row_number, message=row))
             continue
+        # Explicit: the column DEFAULT is the legacy workspace id.
+        row["tenant_id"] = tenant_id
         await repo.create(row)
         imported += 1
 
@@ -343,9 +341,9 @@ async def export_contacts(
     lead_temperature: str | None = None,
     favorite: bool | None = None,
     user: User = Depends(get_current_user),  # noqa: B008
+    tenant_id: uuid.UUID = Depends(get_current_workspace_id),  # noqa: B008
     repo: ContactRepo = Depends(get_contact_repo),  # noqa: B008
 ) -> Response:
-    tenant_id = _tenant(user)
     rows: list[dict[str, Any]] = []
     page = 1
     while len(rows) < EXPORT_MAX_ROWS:

@@ -18,7 +18,7 @@ from platform_core.users.models import User
 from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
 
-from crm_api.auth import DEFAULT_TENANT_ID
+from crm_api.tenancy import get_current_workspace_id
 from crm_api.contacts import ContactListItemOut, _list_item
 from crm_api.deals import get_tracking_store
 
@@ -90,11 +90,12 @@ class DashboardOut(_Camel):
 @router.get("/dashboard", response_model=DashboardOut)
 async def dashboard(
     _user: User = Depends(get_current_user),  # noqa: B008
+    workspace_id: uuid.UUID = Depends(get_current_workspace_id),  # noqa: B008
     repo: DashboardRepo = Depends(get_dashboard_repo),  # noqa: B008
     tracking: Any = Depends(get_tracking_store),  # noqa: B008
 ) -> DashboardOut:
-    data = await repo.summary(DEFAULT_TENANT_ID)
-    open_jobs = await tracking.list_open_jobs(str(DEFAULT_TENANT_ID))
+    data = await repo.summary(workspace_id)
+    open_jobs = await tracking.list_open_jobs(str(workspace_id))
     return DashboardOut(
         total_contacts=data["total_contacts"],
         recent=[_list_item(r) for r in data["recent"]],

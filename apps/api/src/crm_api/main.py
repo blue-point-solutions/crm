@@ -44,6 +44,15 @@ async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
 
         await ensure_deals_schema(pool)
 
+        from crm_api.tenancy import bootstrap_legacy_workspace, ensure_workspace_tables
+
+        await ensure_workspace_tables(pool)
+        # One-time adoption of the pre-isolation shared workspace: the account
+        # named in CRM_LEGACY_WORKSPACE_OWNER becomes its owner, keeping every
+        # previously scanned contact without a data migration. No-op if unset,
+        # already bootstrapped, or the email matches no account.
+        await bootstrap_legacy_workspace(pool, settings.legacy_workspace_owner)
+
     # Outbound notification gateways (Resend email, Semaphore SMS) share one
     # HTTP client whose lifetime matches the app's. Unconfigured keys leave the
     # defaults in place: log-only email, 503 from POST /sms.

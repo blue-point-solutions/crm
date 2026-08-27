@@ -13,9 +13,8 @@ Wire format is the camelCase contract the mobile app already ships
 every body/response model. ``marketingConsent`` uses "NotAsked" on the wire
 but the library's canonical "Not Asked" in scoring.
 
-Tenancy: every row carries ``tenant_id UUID NOT NULL`` defaulted to the
-synthesized single workspace (see auth.DEFAULT_TENANT_ID) — cheap now,
-expensive backfill later, per the Phase-4 recommendation on record.
+Tenancy: every row carries ``tenant_id UUID NOT NULL`` set explicitly to the
+caller's own workspace on insert (crm_api.tenancy); reads filter on it.
 """
 
 from __future__ import annotations
@@ -37,7 +36,7 @@ from platform_core.users.models import User
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
 
-from crm_api.auth import DEFAULT_TENANT_ID
+from crm_api.tenancy import get_current_workspace_id
 
 router = APIRouter(tags=["contacts"])
 
@@ -54,7 +53,7 @@ async def ensure_contacts_tables(pool: asyncpg.Pool) -> None:
         await conn.execute(
             "CREATE TABLE IF NOT EXISTS crm_contacts ("
             "  id UUID PRIMARY KEY DEFAULT gen_random_uuid(), "
-            f" tenant_id UUID NOT NULL DEFAULT '{DEFAULT_TENANT_ID}', "
+            "  tenant_id UUID NOT NULL, "
             "  first_name TEXT NOT NULL DEFAULT '', "
             "  last_name TEXT NOT NULL DEFAULT '', "
             "  job_title TEXT, "
@@ -92,7 +91,7 @@ async def ensure_contacts_tables(pool: asyncpg.Pool) -> None:
         await conn.execute(
             "CREATE TABLE IF NOT EXISTS crm_activity ("
             "  id UUID PRIMARY KEY DEFAULT gen_random_uuid(), "
-            f" tenant_id UUID NOT NULL DEFAULT '{DEFAULT_TENANT_ID}', "
+            "  tenant_id UUID NOT NULL, "
             "  contact_id UUID NOT NULL REFERENCES crm_contacts (id) ON DELETE CASCADE, "
             "  type TEXT NOT NULL, "
             "  content TEXT NOT NULL, "
@@ -601,15 +600,11 @@ def _body_to_row(body: ContactIn) -> dict[str, Any]:
 # --------------------------------------------------------------------------
 
 
-def _tenant(_user: User) -> uuid.UUID:
-    # Single synthesized workspace for now (see auth.py tenancy note).
-    return DEFAULT_TENANT_ID
-
-
 @router.post("/contacts", response_model=ContactCreateOut, status_code=status.HTTP_201_CREATED)
 async def create_contact(
     body: ContactIn,
     user: User = Depends(get_current_user),  # noqa: B008
+    tenant_id: uuid.UUID = Depends(get_current_workspace_id),  # noqa: B008
     repo: ContactRepo = Depends(get_contact_repo),  # noqa: B008
 ) -> ContactCreateOut:
     if not body.first_name.strip() and not body.last_name.strip():
@@ -617,7 +612,6 @@ async def create_contact(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="firstName or lastName is required",
         )
-    tenant_id = _tenant(user)
     candidate_rows = await repo.candidates(
         tenant_id,
         emails=body.emails,
@@ -636,6 +630,9 @@ async def create_contact(
     dupe_ids = {d.id for d in dupes}
 
     row = _body_to_row(body)
+    # Explicit, not left to the column DEFAULT: the DDL default is the legacy
+    # workspace id, which would silently file the row in the wrong workspace.
+    row["tenant_id"] = tenant_id
     row["added_by"] = user.id
     created = await repo.create(row)
     detail = _detail(created, [])
@@ -670,12 +667,13 @@ async def list_contacts(
     page: int = 1,
     page_size: int = 25,
     user: User = Depends(get_current_user),  # noqa: B008
+    tenant_id: uuid.UUID = Depends(get_current_workspace_id),  # noqa: B008
     repo: ContactRepo = Depends(get_contact_repo),  # noqa: B008
 ) -> ContactListOut:
     page = max(1, page)
     page_size = min(max(1, page_size), 100)
     rows, total, facets = await repo.search(
-        _tenant(user),
+        tenant_id,
         q=q,
         tag=tag,
         status=status_,
@@ -699,9 +697,9 @@ async def list_contacts(
 async def get_contact(
     contact_id: uuid.UUID,
     user: User = Depends(get_current_user),  # noqa: B008
+    tenant_id: uuid.UUID = Depends(get_current_workspace_id),  # noqa: B008
     repo: ContactRepo = Depends(get_contact_repo),  # noqa: B008
 ) -> ContactDetailOut:
-    tenant_id = _tenant(user)
     row = await repo.get(tenant_id, contact_id)
     if row is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="contact not found")
@@ -714,9 +712,9 @@ async def patch_contact(
     contact_id: uuid.UUID,
     body: ContactPatch,
     user: User = Depends(get_current_user),  # noqa: B008
+    tenant_id: uuid.UUID = Depends(get_current_workspace_id),  # noqa: B008
     repo: ContactRepo = Depends(get_contact_repo),  # noqa: B008
 ) -> ContactDetailOut:
-    tenant_id = _tenant(user)
     updates = body.model_dump(by_alias=False, exclude_unset=True)
     expected_revision = updates.pop("revision", None)
     # ContactPatch fields are Optional so they can be omitted, but an explicit
@@ -767,9 +765,10 @@ async def patch_contact(
 async def delete_contact(
     contact_id: uuid.UUID,
     user: User = Depends(get_current_user),  # noqa: B008
+    tenant_id: uuid.UUID = Depends(get_current_workspace_id),  # noqa: B008
     repo: ContactRepo = Depends(get_contact_repo),  # noqa: B008
 ) -> None:
-    if not await repo.delete(_tenant(user), contact_id):
+    if not await repo.delete(tenant_id, contact_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="contact not found")
 
 
@@ -777,9 +776,9 @@ async def delete_contact(
 async def toggle_favorite(
     contact_id: uuid.UUID,
     user: User = Depends(get_current_user),  # noqa: B008
+    tenant_id: uuid.UUID = Depends(get_current_workspace_id),  # noqa: B008
     repo: ContactRepo = Depends(get_contact_repo),  # noqa: B008
 ) -> FavoriteOut:
-    tenant_id = _tenant(user)
     updated = await repo.toggle_favorite(tenant_id, contact_id)
     if updated is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="contact not found")
@@ -793,9 +792,9 @@ async def list_activity(
     contact_id: uuid.UUID,
     limit: int = 50,
     user: User = Depends(get_current_user),  # noqa: B008
+    tenant_id: uuid.UUID = Depends(get_current_workspace_id),  # noqa: B008
     repo: ContactRepo = Depends(get_contact_repo),  # noqa: B008
 ) -> list[ActivityOut]:
-    tenant_id = _tenant(user)
     if await repo.get(tenant_id, contact_id) is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="contact not found")
     rows = await repo.list_activities(tenant_id, contact_id, limit=min(limit, 200))
@@ -814,9 +813,9 @@ async def log_activity(
     contact_id: uuid.UUID,
     body: ActivityIn,
     user: User = Depends(get_current_user),  # noqa: B008
+    tenant_id: uuid.UUID = Depends(get_current_workspace_id),  # noqa: B008
     repo: ContactRepo = Depends(get_contact_repo),  # noqa: B008
 ) -> ActivityOut:
-    tenant_id = _tenant(user)
     if await repo.get(tenant_id, contact_id) is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="contact not found")
     a = await repo.add_activity(

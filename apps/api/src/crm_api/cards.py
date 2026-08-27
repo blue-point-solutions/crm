@@ -23,7 +23,7 @@ from platform_storage_r2 import R2StorageAdapter
 from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
 
-from crm_api.auth import DEFAULT_TENANT_ID
+from crm_api.tenancy import get_current_workspace_id
 
 router = APIRouter(tags=["cards"])
 
@@ -63,19 +63,20 @@ async def create_upload_url(
     request: Request,
     body: UploadUrlBody,
     _user: User = Depends(get_current_user),  # noqa: B008
+    workspace_id: uuid.UUID = Depends(get_current_workspace_id),  # noqa: B008
     storage: R2StorageAdapter = Depends(get_storage),  # noqa: B008
 ) -> UploadUrlOut:
     logical_key = f"{uuid.uuid4().hex}.{_EXTENSIONS[body.content_type]}"
     expires_at = datetime.now(UTC) + _UPLOAD_TTL
     presigned = await storage.presign_put(
-        tenant_id=str(DEFAULT_TENANT_ID),
+        tenant_id=str(workspace_id),
         namespace=_NAMESPACE,
         logical_key=logical_key,
         content_type=body.content_type,
         expires_at=expires_at,
     )
     object_key = derive_object_key(
-        tenant_id=str(DEFAULT_TENANT_ID), namespace=_NAMESPACE, logical_key=logical_key
+        tenant_id=str(workspace_id), namespace=_NAMESPACE, logical_key=logical_key
     )
     public_base = request.app.state.settings.r2_public_url.rstrip("/")
     return UploadUrlOut(

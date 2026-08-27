@@ -14,6 +14,10 @@ from fastapi.testclient import TestClient
 from openpyxl import Workbook
 from platform_core.auth.deps import get_current_user
 
+from crm_api.tenancy import get_current_workspace_id
+
+TEST_WORKSPACE_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
+
 from crm_api.contacts import get_contact_repo
 from crm_api.import_export import suggest_mapping
 from crm_api.main import create_app
@@ -72,6 +76,7 @@ def _client(repo: FakeRepo | None = None) -> tuple[TestClient, FakeRepo]:
     repo = repo or FakeRepo()
     app = create_app(Settings(database_url=None))
     app.dependency_overrides[get_current_user] = lambda: FakeUser()
+    app.dependency_overrides[get_current_workspace_id] = lambda: TEST_WORKSPACE_ID
     app.dependency_overrides[get_contact_repo] = lambda: repo
     return TestClient(app), repo
 
