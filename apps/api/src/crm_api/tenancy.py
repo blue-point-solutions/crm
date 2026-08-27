@@ -79,14 +79,37 @@ async def bootstrap_legacy_workspace(pool: asyncpg.Pool, owner_email: str | None
     Every *other* pre-existing account gets its own empty workspace lazily, on
     its next authenticated request -- see resolve_workspace_id().
 
-    No-op when owner_email is unset or matches no account, so a fresh database
-    (tests, a new deployment) is unaffected.
+    Owner resolution, in order:
+      1. owner_email (CRM_LEGACY_WORKSPACE_OWNER), when set and matching a user
+      2. the account that created the legacy rows -- the modal added_by among
+         crm_contacts under LEGACY_WORKSPACE_ID. The data already knows who
+         scanned it, so the operator does not have to remember which email
+         they registered with.
+
+    No-op when neither resolves (fresh database: tests, a new deployment) or
+    when the legacy workspace already has an owner.
     """
-    if not owner_email:
-        return
     async with pool.acquire() as conn:
-        owner = await conn.fetchrow("SELECT id FROM users WHERE lower(email) = lower($1)", owner_email)
+        already = await conn.fetchrow(
+            "SELECT 1 FROM crm_workspace_members WHERE workspace_id = $1 AND role = $2",
+            LEGACY_WORKSPACE_ID,
+            ROLE_OWNER,
+        )
+        if already is not None:
+            return
+        owner = None
+        if owner_email:
+            owner = await conn.fetchrow(
+                "SELECT id FROM users WHERE lower(email) = lower($1)", owner_email
+            )
         if owner is None:
+            owner = await conn.fetchrow(
+                "SELECT added_by AS id FROM crm_contacts "
+                "WHERE tenant_id = $1 AND added_by IS NOT NULL "
+                "GROUP BY added_by ORDER BY count(*) DESC, min(created_at) ASC LIMIT 1",
+                LEGACY_WORKSPACE_ID,
+            )
+        if owner is None or owner["id"] is None:
             return
         await conn.execute(
             "INSERT INTO crm_workspaces (id, name) VALUES ($1, $2) ON CONFLICT (id) DO NOTHING",
